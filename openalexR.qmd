@@ -18,7 +18,7 @@ execute:
   echo: true
 ---
 
-# Literature search for scoping review - BRIDSGES project
+# Literature search for scoping review - BRIDGES project
 # Using OpenAlex via openalexR
 
 ## Load packages and setup 
@@ -29,6 +29,9 @@ library(dplyr)
 library(writexl)
 library(ggplot2)
 library(tidyverse)
+library(DiagrammeR)
+library(DiagrammeRsvg)
+library(rsvg)
 
 # Setup: Add your email for faster API responses -----------------------------
 options(openalexR.mailto = "theophile.mouton92@gmail.com")  # Replace with your email
@@ -382,6 +385,175 @@ dois <- final_set |>
   pull(doi)
 
 writeLines(dois, "dois_for_zotero.txt")
-cat("DOI list exported to: dois_for_zotero.txt (", length(dois), " DOIs)\n")
+cat("DOI list exported to: dois_for_zotero.txt (", length(dois), "DOIs)\n")
 
+```
+
+## Selection methodology
+
+### Search strategy
+
+We conducted a systematic literature search using the OpenAlex database via the `openalexR` package in R. OpenAlex is an open-access bibliographic database containing over 200 million scholarly works, comparable in coverage to Web of Science and Scopus.
+
+Three complementary search strategies were employed to capture the breadth of relevant literature on spatial models for marine and terrestrial management:
+```{r}
+#| label: tbl-queries
+#| tbl-cap: "Search queries used in the literature review"
+
+query_table <- tibble::tribble(
+  ~Query, ~Strategy, ~`Search terms`, ~`Papers found`,
+  "Q1", "Conceptual approach", "spatial model management marine conservation planning", "391",
+  "Q2", "Model types", "agent-based model, individual-based model, Bayesian network, fuzzy cognitive map, end-to-end model, food web model, species distribution model, systematic conservation planning (with marine/ecological qualifiers)", "4,925",
+  "Q3", "Specific model names", "Marxan, InVEST, OSMOSE, Ecopath Ecosim, ATLANTIS, prioritizr, Zonation, SEAPODYM, Ecospace", "5,417"
+)
+
+knitr::kable(query_table)
+```
+
+### Selection process
+```{r}
+#| label: tbl-selection
+#| tbl-cap: "Paper selection process"
+
+selection_table <- tibble::tribble(
+  ~Stage, ~`Papers`, ~`Action`,
+  "Initial search", "10,733", "Combined results from Q1, Q2, Q3",
+  "After deduplication", "8,204", "Removed duplicate DOIs",
+  "Year filter", "~6,600", "Retained papers from 2010 onwards",
+  "Citation filter", "1,174", "Applied quality and recency filters (see below)"
+)
+
+knitr::kable(selection_table)
+```
+
+### Inclusion criteria for final dataset
+
+To ensure a manageable corpus of high-quality and relevant papers, we applied the following filters:
+
+1. **Temporal scope**: Publications from 2010 onwards, capturing the main growth period of spatial decision-support modeling (96% of the literature)
+
+2. **Quality filter**: Papers with ≥50 citations, ensuring inclusion of influential and well-established work
+
+3. **Recency exception**: Papers from 2023–2025 with ≥5 citations, to capture emerging tools and methods that have not yet had time to accumulate citations
+```{r}
+#| label: tbl-final
+#| tbl-cap: "Composition of final dataset"
+
+final_composition <- tibble::tribble(
+  ~Category, ~Papers, ~Description,
+  "Highly cited (≥50 citations)", "721", "Influential papers from 2010–2022",
+  "Recent with traction (≥5 citations)", "453", "Emerging work from 2023–2025",
+  "**Total**", "**1,174**", "Final corpus for screening"
+)
+
+knitr::kable(final_composition)
+```
+
+### Open access availability
+```{r}
+#| label: tbl-oa
+#| tbl-cap: "Open access status of final dataset"
+
+oa_status <- final_set |> 
+  count(is_oa) |> 
+  mutate(
+    Status = if_else(is_oa, "Open Access", "Paywalled"),
+    Percentage = paste0(round(100 * n / sum(n), 1), "%")
+  ) |> 
+  select(Status, Papers = n, Percentage)
+
+knitr::kable(oa_status)
+```
+
+Approximately 60% of the selected papers are openly accessible, facilitating full-text retrieval for the review.
+
+## PRISMA flow diagram 
+
+```{r}
+#| label: fig-prisma
+#| fig-cap: "PRISMA flow diagram of the literature selection process"
+
+prisma <- grViz("
+digraph prisma {
+  
+  # Graph settings
+  graph [layout = dot, rankdir = TB, splines = line, nodesep = 0.5]
+  
+  # Node settings
+  node [shape = rectangle, style = filled, fillcolor = white, 
+        fontname = Helvetica, fontsize = 11, width = 3]
+  
+  # Identification
+  subgraph cluster_id {
+    label = 'Identification'
+    labelloc = t
+    labeljust = l
+    style = rounded
+    bgcolor = '#e8f4f8'
+    
+    id1 [label = 'Records identified through\\nOpenAlex database searching\\n(n = 10,733)']
+    id2 [label = 'Q1: Conceptual approach (n = 391)\\nQ2: Model types (n = 4,925)\\nQ3: Specific models (n = 5,417)', 
+         fillcolor = '#d4edda']
+  }
+  
+  # Screening
+  subgraph cluster_screen {
+    label = 'Screening'
+    labelloc = t
+    labeljust = l
+    style = rounded
+    bgcolor = '#fff3cd'
+    
+    sc1 [label = 'Records after duplicates removed\\n(n = 8,204)']
+    sc2 [label = 'Records excluded:\\nPre-2010 publications\\n(n = ~1,600)', fillcolor = '#f8d7da']
+    sc3 [label = 'Records from 2010 onwards\\n(n = ~6,600)']
+  }
+  
+  # Eligibility
+  subgraph cluster_elig {
+    label = 'Eligibility'
+    labelloc = t
+    labeljust = l
+    style = rounded
+    bgcolor = '#e2e3f3'
+    
+    el1 [label = 'Records assessed for\\ncitation impact\\n(n = ~6,600)']
+    el2 [label = 'Records excluded:\\nLow citation count\\n(<50 citations for 2010-2022)\\n(<5 citations for 2023-2025)\\n(n = ~5,400)', fillcolor = '#f8d7da']
+    el3 [label = 'Records meeting\\ncitation criteria\\n(n = 1,174)']
+  }
+  
+  # Included
+  subgraph cluster_inc {
+    label = 'Included'
+    labelloc = t
+    labeljust = l
+    style = rounded
+    bgcolor = '#d4edda'
+    
+    inc1 [label = 'Studies included in review\\n(n = 1,174)', fillcolor = '#28a745', fontcolor = white]
+    inc2 [label = 'Highly cited ≥50 (n = 721)\\nRecent 2023-25 with ≥5 cites (n = 453)', 
+          fillcolor = '#d4edda']
+  }
+  
+  # Edges
+  id1 -> id2 [style = invis]
+  id2 -> sc1 [minlen = 2]
+  sc1 -> sc2 [style = dashed]
+  sc1 -> sc3
+  sc3 -> el1 [minlen = 2]
+  el1 -> el2 [style = dashed]
+  el1 -> el3
+  el3 -> inc1 [minlen = 2]
+  inc1 -> inc2 [style = invis]
+}
+")
+
+# Export to SVG then PNG
+prisma |> 
+  export_svg() |> 
+  charToRaw() |> 
+  rsvg_png("prisma_diagram.png", width = 800)
+
+# Display the image
+knitr::include_graphics("prisma_diagram.png")
 ```
