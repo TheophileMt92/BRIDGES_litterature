@@ -83,7 +83,7 @@ query1 |>
   head(10)
 ```
 
-# Query 2: Model types + Socio-ecological systems
+## Query 2: Model types + Socio-ecological systems
 
 ```{r}
 # Query 2: Search each model type separately
@@ -159,7 +159,7 @@ query2 |>
 
 ```
 
-# Query 3: Specific model names
+## Query 3: Specific model names
 
 ```{r}
 # Final model names
@@ -284,7 +284,7 @@ all_results_unique |>
   mutate(pct = round(100 * n / sum(n), 1))
 ```
 
-# Quality filter 
+## Quality filter 
 
 ```{r}
 # Keep only well-cited papers (quality filter)
@@ -395,7 +395,7 @@ cat("DOI list exported to: dois_for_zotero.txt (", length(dois), "DOIs)\n")
 
 We conducted a systematic literature search using the OpenAlex database via the `openalexR` package in R. OpenAlex is an open-access bibliographic database containing over 200 million scholarly works, comparable in coverage to Web of Science and Scopus.
 
-Three complementary search strategies were employed to capture the breadth of relevant literature on spatial models for marine and terrestrial management:
+OpenAlex employs a relevance-based search algorithm that matches natural language queries against paper titles and abstracts. Three complementary search strategies were used: (1) a conceptual search targeting spatial models for marine and terrestrial management, (2) searches for specific model types (e.g., agent-based models, Bayesian networks, end-to-end ecosystem models), and (3) searches for named modeling tools (e.g., Marxan, InVEST, ATLANTIS, Ecopath with Ecosim):
 ```{r}
 #| label: tbl-queries
 #| tbl-cap: "Search queries used in the literature review"
@@ -556,4 +556,22 @@ prisma |>
 
 # Display the image
 knitr::include_graphics("prisma_diagram.png")
+```
+
+```{r}
+# Find highly cited, open access papers
+candidates <- final_set |> 
+  filter(is_oa == TRUE) |> 
+  arrange(desc(cited_by_count)) |> 
+  select(display_name, publication_year, cited_by_count, search_term, pdf_url, doi) |> 
+  head(20)
+
+print(candidates, n = 20)
+
+# Get details for these two papers
+selected <- final_set |> 
+  filter(str_detect(display_name, "Atlantis experience|Best practice in Ecopath")) |> 
+  select(display_name, doi, pdf_url, oa_url)
+
+print(selected)
 ```
