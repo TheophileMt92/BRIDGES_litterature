@@ -1,0 +1,387 @@
+---
+title: "openalexR"
+author: "Théophile L. Mouton"
+date: "January 21, 2026"
+format:
+  html:
+    toc: true
+    toc-location: right
+    css: custom.css
+    output-file: "openalexR.html"
+    self-contained: true
+    code-fold: true
+    code-tools: true
+editor: visual
+execute:
+  warning: false
+  message: false
+  echo: true
+---
+
+# Literature search for scoping review - BRIDSGES project
+# Using OpenAlex via openalexR
+
+## Load packages and setup 
+```{r}
+# Load packages --------------------------------------------------------------
+library(openalexR)
+library(dplyr)
+library(writexl)
+library(ggplot2)
+library(tidyverse)
+
+# Setup: Add your email for faster API responses -----------------------------
+options(openalexR.mailto = "theophile.mouton92@gmail.com")  # Replace with your email
+```
+
+## Query 1: Conceptual approach (broad)
+### Models/tools + Spatial + Domain + Application
+
+```{r}
+# Query 1 with no date limit
+query1 <- oa_fetch(
+  entity = "works",
+  title_and_abstract.search = "spatial model management marine conservation planning",
+  to_publication_date = "2025-12-31",
+  type = "article",
+  verbose = TRUE
+)
+
+nrow(query1)
+
+# Check the year distribution — this will tell us if there's much pre-2000
+# query1 |> 
+#  count(publication_year) |> 
+#  arrange(publication_year) |> 
+#  print(n = 50)
+
+# Create cumulative data
+query1_cumulative <- query1 |> 
+  count(publication_year) |> 
+  arrange(publication_year) |> 
+  mutate(cumulative = cumsum(n))
+
+# Plot cumulative curve
+ggplot(query1_cumulative, aes(x = publication_year, y = cumulative)) +
+  geom_line(color = "steelblue", linewidth = 1.2) +
+  geom_point(color = "steelblue", size = 2) +
+  labs(
+    title = "Cumulative publications over time",
+    subtitle = "Query 1: Spatial model + marine conservation planning",
+    x = "Publication year",
+    y = "Cumulative number of papers"
+  ) +
+  theme_minimal()
+
+# Most cited papers (good quality check)
+query1 |> 
+  arrange(desc(cited_by_count)) |> 
+  select(display_name, publication_year, cited_by_count) |> 
+  head(10)
+```
+
+# Query 2: Model types + Socio-ecological systems
+
+```{r}
+# Query 2: Search each model type separately
+# Now download all
+model_types_refined <- c(
+  "agent-based model marine management",
+  "individual-based model fisheries",
+  "Bayesian network ecological decision",
+  "fuzzy cognitive map ecosystem",
+  "end-to-end marine ecosystem model",
+  "food web model fisheries management",
+  "species distribution model marine protected area",
+  "systematic conservation planning marine"
+)
+
+search_term <- function(term) {
+  cat("Searching:", term, "\n")
+  tryCatch({
+    result <- oa_fetch(
+      entity = "works",
+      title_and_abstract.search = term,
+      to_publication_date = "2025-12-31",
+      type = "article",
+      verbose = FALSE
+    )
+    if (!is.null(result) && nrow(result) > 0) {
+      result$search_term <- term
+      return(result)
+    }
+  }, error = function(e) {
+    message("Error searching for: ", term)
+    return(NULL)
+  })
+}
+
+query2_list <- lapply(model_types_refined, search_term)
+query2 <- bind_rows(query2_list)
+
+nrow(query2)
+
+# Check results per term
+query2 |> count(search_term, sort = TRUE)
+
+# Year distribution
+#query2 |> 
+#  count(publication_year) |> 
+#  arrange(publication_year) |> 
+#  print(n = 50)
+
+# Create cumulative data for query2
+query2_cumulative <- query2 |> 
+  count(publication_year) |> 
+  arrange(publication_year) |> 
+  mutate(cumulative = cumsum(n))
+
+# Plot cumulative curve
+ggplot(query2_cumulative, aes(x = publication_year, y = cumulative)) +
+  geom_line(color = "darkorange", linewidth = 1.2) +
+  geom_point(color = "darkorange", size = 2) +
+  labs(
+    title = "Cumulative publications over time",
+    subtitle = "Query 2: Model types (ABM, Bayesian networks, end-to-end, etc.)",
+    x = "Publication year",
+    y = "Cumulative number of papers"
+  ) +
+  theme_minimal()
+
+# Quick relevance check
+query2 |> 
+  arrange(desc(cited_by_count)) |> 
+  select(display_name, publication_year, cited_by_count) |> 
+  head(10)
+
+```
+
+# Query 3: Specific model names
+
+```{r}
+# Final model names
+model_names <- c(
+  "Marxan conservation",
+  "InVEST natural capital",
+  "OSMOSE fish model",
+  "Ecopath Ecosim",
+  "ATLANTIS ecosystem model",
+  "prioritizr conservation",
+  "Zonation software conservation",
+  "SEAPODYM tuna",
+  "Ecospace spatial"
+)
+
+search_model <- function(term) {
+  cat("Searching:", term, "\n")
+  tryCatch({
+    result <- oa_fetch(
+      entity = "works",
+      title_and_abstract.search = term,
+      to_publication_date = "2025-12-31",
+      type = "article",
+      verbose = FALSE
+    )
+    if (!is.null(result) && nrow(result) > 0) {
+      result$search_term <- term
+      return(result)
+    }
+  }, error = function(e) {
+    message("Error searching for: ", term)
+    return(NULL)
+  })
+}
+
+query3_list <- lapply(model_names, search_model)
+query3 <- bind_rows(query3_list)
+
+nrow(query3)
+
+# Check results per model
+query3 |> count(search_term, sort = TRUE)
+
+# Create cumulative data for query3
+query3_cumulative <- query3 |> 
+  count(publication_year) |> 
+  arrange(publication_year) |> 
+  mutate(cumulative = cumsum(n))
+
+# Plot cumulative curve
+ggplot(query3_cumulative, aes(x = publication_year, y = cumulative)) +
+  geom_line(color = "forestgreen", linewidth = 1.2) +
+  geom_point(color = "forestgreen", size = 2) +
+  labs(
+    title = "Cumulative publications over time",
+    subtitle = "Query 3: Specific models (Marxan, InVEST, OSMOSE, Ecopath, ATLANTIS, etc.)",
+    x = "Publication year",
+    y = "Cumulative number of papers"
+  ) +
+  theme_minimal()
+```
+
+## Combine all three approaches 
+
+```{r}
+# Add source identifier to each query
+query1$query_source <- "Q1_conceptual"
+query2$query_source <- "Q2_model_types"
+query3$query_source <- "Q3_model_names"
+
+# Combine all results
+all_results <- bind_rows(query1, query2, query3)
+cat("Total before deduplication:", nrow(all_results), "\n")
+
+# Remove duplicates based on DOI
+all_results_unique <- all_results |> 
+  filter(!is.na(doi)) |> 
+  distinct(doi, .keep_all = TRUE)
+
+cat("Total after deduplication:", nrow(all_results_unique), "\n")
+
+# Check overlap between queries
+all_results |> 
+  filter(!is.na(doi)) |> 
+  group_by(doi) |> 
+  summarise(sources = paste(unique(query_source), collapse = " + ")) |> 
+  count(sources, sort = TRUE)
+
+# Year distribution with cumulative count
+year_dist <- all_results_unique |> 
+  count(publication_year) |> 
+  arrange(publication_year) |> 
+  mutate(
+    cumulative = cumsum(n),
+    pct_of_total = round(100 * cumulative / sum(n), 1)
+  )
+
+#print(year_dist, n = 50)
+
+# Plot combined results (all queries deduplicated)
+ggplot(year_dist, aes(x = publication_year, y = cumulative)) +
+  geom_line(color = "purple", linewidth = 1.2) +
+  geom_point(color = "purple", size = 2) +
+  labs(
+    title = "Cumulative publications over time",
+    subtitle = "All queries combined (deduplicated)",
+    x = "Publication year",
+    y = "Cumulative number of papers"
+  ) +
+  theme_minimal()
+
+# Quick visual in console
+year_dist |> 
+  filter(publication_year >= 2000) |> 
+  mutate(bar = strrep("█", round(n/50))) |> 
+  select(publication_year, n, bar) |> 
+  print(n = 30)
+
+# Check open access status
+all_results_unique |> 
+  count(is_oa) |> 
+  mutate(pct = round(100 * n / sum(n), 1))
+```
+
+# Quality filter 
+
+```{r}
+# Keep only well-cited papers (quality filter)
+filtered <- all_results_unique |> 
+  filter(
+    publication_year >= 2010,
+    cited_by_count >= 10  # At least 10 citations
+  )
+nrow(filtered)
+
+# Try different citation thresholds
+thresholds <- c(5, 10, 20, 30, 50, 100)
+
+for (t in thresholds) {
+  n <- all_results_unique |> 
+    filter(publication_year >= 2010, cited_by_count >= t) |> 
+    nrow()
+  cat("Citations >=", t, ":", n, "papers\n")
+}
+
+# Open access status
+all_results_unique |> 
+  filter(publication_year >= 2010) |> 
+  count(is_oa) |> 
+  mutate(pct = round(100 * n / sum(n), 1))
+
+# Final filtered set: highly cited OR recent
+final_set <- all_results_unique |> 
+  filter(publication_year >= 2010) |> 
+  filter(
+    cited_by_count >= 50 | publication_year >= 2023
+  )
+
+nrow(final_set)
+
+# Check the composition
+final_set |> 
+  mutate(category = if_else(publication_year >= 2023, "Recent (2023-25)", "Highly cited (≥50)")) |> 
+  count(category)
+
+# Option A: Smaller recent window (just 2024-2025)
+option_a <- all_results_unique |> 
+  filter(publication_year >= 2010) |> 
+  filter(cited_by_count >= 50 | publication_year >= 2024)
+cat("Option A (2024-25 recent):", nrow(option_a), "\n")
+
+# Option B: Add mild citation filter for recent papers too
+option_b <- all_results_unique |> 
+  filter(publication_year >= 2010) |> 
+  filter(
+    cited_by_count >= 50 | 
+      (publication_year >= 2023 & cited_by_count >= 5)
+  )
+cat("Option B (recent with ≥5 cites):", nrow(option_b), "\n")
+
+# Option C: Higher threshold overall
+option_c <- all_results_unique |> 
+  filter(publication_year >= 2010) |> 
+  filter(cited_by_count >= 30 | publication_year >= 2024)
+cat("Option C (≥30 cites + 2024-25):", nrow(option_c), "\n")
+
+# Final selection
+final_set <- all_results_unique |> 
+  filter(publication_year >= 2010) |> 
+  filter(
+    cited_by_count >= 50 | 
+      (publication_year >= 2023 & cited_by_count >= 5)
+  )
+
+# Quick quality check - top papers
+final_set |> 
+  arrange(desc(cited_by_count)) |> 
+  select(display_name, publication_year, cited_by_count, query_source) |> 
+  head(15)
+
+# Export to Excel
+export_df <- final_set |> 
+  select(
+    title = display_name,
+    year = publication_year,
+    journal = source_display_name,
+    doi,
+    abstract,
+    cited_by_count,
+    is_oa,
+    oa_url,
+    pdf_url,
+    query_source,
+    search_term
+  )
+
+write_xlsx(export_df, "bridges_scoping_review_1174_papers.xlsx")
+cat("Exported to: bridges_scoping_review_1174_papers.xlsx\n")
+
+# Also export DOIs for Zotero import
+dois <- final_set |> 
+  filter(!is.na(doi)) |> 
+  pull(doi)
+
+writeLines(dois, "dois_for_zotero.txt")
+cat("DOI list exported to: dois_for_zotero.txt (", length(dois), " DOIs)\n")
+
+```
