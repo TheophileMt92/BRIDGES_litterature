@@ -1,0 +1,291 @@
+---
+title: "Extraction analyses"
+author: "Théophile L. Mouton"
+date: "January 22, 2026"
+format:
+  html:
+    toc: true
+    toc-location: right
+    css: custom.css
+    output-file: "Extraction analyses.html"
+    self-contained: true
+    code-fold: true
+    code-tools: true
+editor: visual
+execute:
+  warning: false
+  message: false
+  echo: true
+---
+
+## Create compiled dataset 
+
+```{r}
+# Load packages
+library(here)
+library(readxl)
+library(dplyr)
+library(purrr)
+library(tidyr)
+library(readr)
+library(stringr)
+
+# Get all xlsx files from the Extraction batches folder
+batch_files <- list.files(
+  here("Extraction batches"),
+  pattern = "\\.xlsx$",
+  full.names = TRUE
+)
+
+# Read all columns as text to avoid type conflicts
+bridges_compiled <- batch_files %>%
+  set_names(basename(.)) %>%
+  map_dfr(
+    ~ read_excel(.x, sheet = 1, col_types = "text"),
+    .id = "source_file"
+  )
+
+# Function to extract numeric score from various formats ("4/5" -> 4)
+parse_score <- function(x) {
+  x <- as.character(x)
+  x <- gsub("/5$", "", x)
+  as.numeric(x)
+}
+
+# Harmonize all score columns into one
+bridges_compiled <- bridges_compiled %>%
+  mutate(
+    score_unified = coalesce(
+      as.numeric(Score),
+      parse_score(BRIDGES_Score),
+      parse_score(BRIDGES_Relevance_Score),
+      parse_score(Pertinence_BRIDGES),
+      parse_score(Relevance_Score)
+    )
+  )
+
+# Remove flagged papers (keep LANDMARK)
+bridges_clean <- bridges_compiled %>%
+  filter(
+    is.na(Flag) | 
+    Flag == "" | 
+    Flag == "LANDMARK"
+  )
+
+# Select and harmonize key columns
+bridges_final <- bridges_clean %>%
+  transmute(
+    # Identifiers
+    ID_article = coalesce(ID_article, Article_ID, OpenAlex_ID),
+    Rank = as.numeric(Rank),
+    
+    # Bibliographic
+    Authors = coalesce(Authors, Auteurs, First_Author),
+    Year = coalesce(as.numeric(Year), as.numeric(Annee), as.numeric(Année)),
+    Title = coalesce(Title, Titre),
+    Journal,
+    DOI,
+    Citations = as.numeric(Citations),
+    
+    # Model info
+    Model_Name = coalesce(Model_Name, Nom_modele, Nom_modele_INFER),
+    Model_Type = coalesce(Model_Type, Type_modele, Model_Subtype),
+    
+    # Spatial/temporal
+    Spatial_Scope = coalesce(Spatial_Scope, Etendue_spatiale, Geographic_Scope),
+    Temporal_Scope = coalesce(Temporal_Scope, Periode_temporelle, Horizon_temporel),
+    
+    # Content
+    Taxa = coalesce(Taxa, Taxa_Focus, Target_Taxa),
+    Drivers = coalesce(Drivers, Environmental_Drivers, Variables_entree),
+    Application = coalesce(Application, Management_Application, Management_Applications, Contexte_decision),
+    Key_Finding = coalesce(Key_Finding, Key_Findings),
+    Innovation = coalesce(Innovation, Key_Innovation, Methodological_Innovation),
+    Limitations = coalesce(Limitations, Limites),
+    
+    # Evaluation
+    Score = score_unified,
+    Score_Justification,
+    Flag,
+    Notes = coalesce(Notes, Extraction_Notes)
+  )
+
+# Summary
+#cat("Final dataset:", nrow(bridges_final), "articles,", ncol(bridges_final), "columns\n")
+#bridges_final %>% count(Score)
+
+# Save
+write_csv(bridges_final, here("BRIDGES_compiled_103articles_clean.csv"))
+```
+
+# First descriptive charts 
+
+```{r}
+library(ggplot2)
+library(forcats)
+library(treemapify)  # install.packages("treemapify")
+
+# Set theme
+theme_set(theme_minimal(base_size = 12))
+
+# 1. Publication timeline
+bridges_final %>%
+  count(Year) %>%
+  arrange(Year) %>%
+  mutate(cumulative = cumsum(n)) %>%
+  ggplot(aes(Year, cumulative)) +
+  geom_line(linewidth = 1, color = "steelblue") +
+  geom_point(color = "steelblue") +
+  labs(x = NULL, y = "Cumulative number of articles", 
+       title = "Cumulative publications included in review")
+
+# 2. Model types (top 15)
+bridges_final <- bridges_final %>%
+  mutate(
+    Model_Type_Clean = case_when(
+      # Species Distribution Models
+      str_detect(Model_Type, regex("SDM|species distribution|maxent|habitat suit|niche", ignore_case = TRUE)) ~ "Species Distribution Model",
+      
+      # End-to-end / Ecosystem models
+      str_detect(Model_Type, regex("end-to-end|atlantis|ecosystem model|EwE|ecopath|ecosim|multi-model integration", ignore_case = TRUE)) ~ "End-to-End Ecosystem Model",
+      
+      # Food web models
+      str_detect(Model_Type, regex("food web|trophic|réseau trophique|coraux-poissons", ignore_case = TRUE)) ~ "Food Web Model",
+      
+      # Size spectrum
+      str_detect(Model_Type, regex("size spectrum|spectre de taille", ignore_case = TRUE)) ~ "Size Spectrum Model",
+      
+      # Conservation prioritization
+      str_detect(Model_Type, regex("priorit|marxan|zonation|conservation planning|planification|optimization|site identification", ignore_case = TRUE)) ~ "Spatial Prioritization",
+      
+      # Connectivity / Dispersal
+      str_detect(Model_Type, regex("connect|dispersal|biophysical|CMS|larval", ignore_case = TRUE)) ~ "Connectivity Model",
+      
+      # Climate / Earth System
+      str_detect(Model_Type, regex("climate|CMIP|ESM|earth system|projection", ignore_case = TRUE)) ~ "Climate Projection",
+      
+      # Biogeochemical / Coupled physical
+      str_detect(Model_Type, regex("biogeochem|BGC|nutrient|plankton|biogéochim|physical-bio|couplé", ignore_case = TRUE)) ~ "Biogeochemical Model",
+      
+      # Statistical / GLM
+      str_detect(Model_Type, regex("GLM|statistic|regression|GAM", ignore_case = TRUE)) ~ "Statistical Model",
+      
+      # Agent/Individual-based
+      str_detect(Model_Type, regex("agent|individual|IBM|ABM", ignore_case = TRUE)) ~ "Individual-Based Model",
+      
+      # Bayesian Network / Decision Support
+      str_detect(Model_Type, regex("bayesian|BN|decision support", ignore_case = TRUE)) ~ "Bayesian Network",
+      
+      # Bioeconomic
+      str_detect(Model_Type, regex("bioéconomique|bioeconomic", ignore_case = TRUE)) ~ "Bioeconomic Model",
+      
+      # Risk Assessment
+      str_detect(Model_Type, regex("risk", ignore_case = TRUE)) ~ "Risk Assessment",
+      
+      # Reviews / Methodological
+      str_detect(Model_Type, regex("review|revue|synthèse|conceptual|methodolog|validation", ignore_case = TRUE)) ~ "Review/Conceptual",
+      
+      # Exclude non-spatial
+      str_detect(Model_Type, regex("otolith|not spatial|unclear|uncertain|database|FLAGGED", ignore_case = TRUE)) ~ NA_character_,
+      
+      is.na(Model_Type) ~ NA_character_,
+      
+      TRUE ~ "Other"
+    )
+  )
+
+# Check result
+#bridges_final %>%
+#  count(Model_Type_Clean, sort = TRUE)
+
+bridges_final %>%
+  filter(!is.na(Model_Type_Clean)) %>%
+  count(Model_Type_Clean) %>%
+  mutate(
+    pct = n / sum(n) * 100,
+    Model_Type_Clean = fct_reorder(Model_Type_Clean, n)
+  ) %>%
+  ggplot(aes(n, Model_Type_Clean)) +
+  geom_col(fill = "steelblue") +
+  geom_text(aes(label = paste0(round(pct), "%")), hjust = -0.2, size = 3.5) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
+  labs(x = "Number of articles", y = NULL,
+       title = "Model types in reviewed literature",
+       subtitle = "n = 88 articles") +
+  theme_minimal(base_size = 12) +
+  theme(panel.grid.major.y = element_blank())
+
+# 3. Application domains
+
+bridges_final <- bridges_final %>%
+  mutate(
+    Application_Clean = case_when(
+      # MPA / Spatial Planning
+      str_detect(Application, regex("MPA|AMP|marine spatial|MSP|reserve design|spatial planning|spatiale marine|protected area|EBSA", ignore_case = TRUE)) ~ "MPA & Spatial Planning",
+      
+      # Fisheries Management
+      str_detect(Application, regex("fisher|fish stock|TAC|quota|EBFM|pêcherie|catch|harvest|krill fishery", ignore_case = TRUE)) ~ "Fisheries Management",
+      
+      # Climate Adaptation
+      str_detect(Application, regex("climat|warming|adaptation|vulnerability", ignore_case = TRUE)) ~ "Climate Adaptation",
+      
+      # Conservation Planning/Prioritization
+      str_detect(Application, regex("conserv|priorit|biodiversity|species protection|habitat protection", ignore_case = TRUE)) ~ "Conservation Planning",
+      
+      # Ecosystem-Based Management
+      str_detect(Application, regex("EBM|ecosystem-based|ecosystem approach|écosystémique|food web", ignore_case = TRUE)) ~ "Ecosystem-Based Management",
+      
+      # Policy & Governance
+      str_detect(Application, regex("CCAMLR|RFMO|CBD|policy|governance|directive|Aichi|transboundary|international", ignore_case = TRUE)) ~ "Policy & Governance",
+      
+      # Environmental Assessment
+      str_detect(Application, regex("impact assess|EIA|risk assess|environmental flow|validation", ignore_case = TRUE)) ~ "Environmental Assessment",
+      
+      # Exclude
+      str_detect(Application, regex("^N/A$|^NA$", ignore_case = TRUE)) ~ NA_character_,
+      is.na(Application) ~ NA_character_,
+      
+      TRUE ~ "Other"
+    )
+  )
+
+# Check result
+#bridges_final %>%
+#  count(Application_Clean, sort = TRUE)
+
+bridges_final %>%
+  filter(!is.na(Application_Clean)) %>%
+  count(Application_Clean) %>%
+  mutate(
+    pct = n / sum(n) * 100,
+    Application_Clean = fct_reorder(Application_Clean, n)
+  ) %>%
+  ggplot(aes(n, Application_Clean)) +
+  geom_col(fill = "darkorange") +
+  geom_text(aes(label = paste0(round(pct), "%")), hjust = -0.2, size = 3.5) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
+  labs(x = "Number of articles", y = NULL,
+       title = "Management applications",
+       subtitle = paste0("n = ", sum(!is.na(bridges_final$Application_Clean)), " articles")) +
+  theme_minimal(base_size = 12) +
+  theme(panel.grid.major.y = element_blank())
+
+# 4. Score distribution  
+bridges_final %>%
+  ggplot(aes(factor(Score))) +
+  geom_bar(fill = "steelblue") +
+  geom_text(stat = "count", aes(label = after_stat(count)), vjust = -0.3) +
+  labs(x = "Relevance Score", y = "Number of articles",
+       title = "Distribution of relevance scores")
+
+# 5. Top journals
+bridges_final %>%
+  count(Journal, sort = TRUE) %>%
+  head(12) %>%
+  mutate(Journal = fct_reorder(Journal, n)) %>%
+  ggplot(aes(n, Journal)) +
+  geom_col(fill = "steelblue") +
+  labs(x = "Number of articles", y = NULL,
+       title = "Top journals")
+```
+
