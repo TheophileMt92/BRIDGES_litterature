@@ -95,6 +95,13 @@ bridges_final <- bridges_clean %>%
     Spatial_Scope = coalesce(Spatial_Scope, Etendue_spatiale, Geographic_Scope),
     Temporal_Scope = coalesce(Temporal_Scope, Periode_temporelle, Horizon_temporel),
     
+# Geographic
+Country = Pays,
+Ocean_Basin = Bassin_oceanique,
+FAO_Zone = Zone_FAO,
+# Keep Spatial_Scope as well for text descriptions
+Spatial_Scope = coalesce(Spatial_Scope, Geographic_Scope),
+
     # Content
     Taxa = coalesce(Taxa, Taxa_Focus, Target_Taxa),
     Drivers = coalesce(Drivers, Environmental_Drivers, Variables_entree),
@@ -272,9 +279,11 @@ bridges_final %>%
 
 # 4. Score distribution  
 bridges_final %>%
-  ggplot(aes(factor(Score))) +
-  geom_bar(fill = "steelblue") +
-  geom_text(stat = "count", aes(label = after_stat(count)), vjust = -0.3) +
+  count(Score) %>%
+  mutate(pct = n / sum(n) * 100) %>%
+  ggplot(aes(factor(Score), n)) +
+  geom_col(fill = "steelblue") +
+  geom_text(aes(label = paste0(round(pct), "%")), vjust = -0.3) +
   labs(x = "Relevance Score", y = "Number of articles",
        title = "Distribution of relevance scores")
 
@@ -282,10 +291,82 @@ bridges_final %>%
 bridges_final %>%
   count(Journal, sort = TRUE) %>%
   head(12) %>%
-  mutate(Journal = fct_reorder(Journal, n)) %>%
+  mutate(
+    pct = n / sum(n) * 100,
+    Journal = fct_reorder(Journal, n)
+  ) %>%
   ggplot(aes(n, Journal)) +
   geom_col(fill = "steelblue") +
+  geom_text(aes(label = paste0(round(pct), "%")), hjust = -0.2, size = 3.5) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
   labs(x = "Number of articles", y = NULL,
-       title = "Top journals")
+       title = "Top journals") +
+  theme_minimal(base_size = 12) +
+  theme(panel.grid.major.y = element_blank())
 ```
 
+# First maps 
+
+```{r}
+# Clean and harmonize Ocean_Basin
+bridges_final <- bridges_final %>%
+  mutate(
+    Ocean_Basin_Clean = case_when(
+      # Global / Methodological
+      str_detect(Ocean_Basin, regex("global|theoretical|conceptual|review|outil|tool", ignore_case = TRUE)) ~ "Global",
+      
+      # Mediterranean
+      str_detect(Ocean_Basin, regex("mediterran|méditerran", ignore_case = TRUE)) ~ "Mediterranean",
+      
+      # Baltic
+      str_detect(Ocean_Basin, regex("baltic|baltique", ignore_case = TRUE)) ~ "Baltic Sea",
+      
+      # Atlantic
+      str_detect(Ocean_Basin, regex("atlantic|atlantique", ignore_case = TRUE)) ~ "Atlantic",
+      
+      # Pacific
+      str_detect(Ocean_Basin, regex("pacific|pacifique", ignore_case = TRUE)) ~ "Pacific",
+      
+      # Southern Ocean
+      str_detect(Ocean_Basin, regex("austral|southern|antarct", ignore_case = TRUE)) ~ "Southern Ocean",
+      
+      # Indo-Pacific / Indian
+      str_detect(Ocean_Basin, regex("indo-pacific|indian", ignore_case = TRUE)) ~ "Indo-Pacific",
+      
+      # Caribbean
+      str_detect(Ocean_Basin, regex("carib|caraïb", ignore_case = TRUE)) ~ "Caribbean",
+      
+      # Australia-specific
+      str_detect(Ocean_Basin, regex("austral", ignore_case = TRUE)) & 
+        !str_detect(Ocean_Basin, regex("océan", ignore_case = TRUE)) ~ "Australia",
+      
+      # European seas
+      str_detect(Ocean_Basin, regex("north sea|mer du nord|europ", ignore_case = TRUE)) ~ "NE Atlantic / European Seas",
+      
+      # NA handling
+      is.na(Ocean_Basin) | Ocean_Basin %in% c("NA", "N/A", "Multiple") ~ NA_character_,
+      str_detect(Ocean_Basin, regex("^N/A|terrestrial", ignore_case = TRUE)) ~ NA_character_,
+      
+      TRUE ~ "Other"
+    )
+  )
+
+# Check result
+bridges_final %>%
+  count(Ocean_Basin_Clean, sort = TRUE)
+
+# Bar chart (excluding Global and NA)
+bridges_final %>%
+  filter(!is.na(Ocean_Basin_Clean), Ocean_Basin_Clean != "Global") %>%
+  count(Ocean_Basin_Clean) %>%
+  mutate(Ocean_Basin_Clean = fct_reorder(Ocean_Basin_Clean, n)) %>%
+  ggplot(aes(n, Ocean_Basin_Clean)) +
+  geom_col(fill = "#2E86AB") +
+  geom_text(aes(label = n), hjust = -0.2, size = 3.5) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
+  labs(x = "Number of articles", y = NULL,
+       title = "Geographic focus of case studies",
+       subtitle = "Excludes 14 global/methodological papers and 70 with no geographic data") +
+  theme_minimal(base_size = 12) +
+  theme(panel.grid.major.y = element_blank())
+```
