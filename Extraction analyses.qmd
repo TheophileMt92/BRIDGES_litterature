@@ -352,8 +352,8 @@ bridges_final <- bridges_final %>%
   )
 
 # Check result
-bridges_final %>%
-  count(Ocean_Basin_Clean, sort = TRUE)
+#bridges_final %>%
+#  count(Ocean_Basin_Clean, sort = TRUE)
 
 # Bar chart (excluding Global and NA)
 bridges_final %>%
