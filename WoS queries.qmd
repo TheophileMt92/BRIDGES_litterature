@@ -284,7 +284,7 @@ cat("Total articles:", nrow(final_wos_adjusted), "\n")
 final_wos_adjusted |> count(category) |> mutate(pct = round(100 * n / sum(n), 1))
 ```
 
-
+# Filtering by WoS category (domain/topic)
 
 ```{r}
 # Voir les champs disponibles liés aux catégories
@@ -333,4 +333,10 @@ final_wos_adjusted |>
   separate_rows(WC, sep = ";") |>
   count(WC, sort = TRUE) |>
   head(20)
+```
+
+
+
+```{r}
+
 ```
