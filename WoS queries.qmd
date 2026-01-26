@@ -1,0 +1,336 @@
+---
+title: "WoS queries"
+author: "Théophile L. Mouton"
+date: "January 21, 2026"
+format:
+  html:
+    toc: true
+    toc-location: right
+    css: custom.css
+    output-file: "WoS queries.html"
+    self-contained: true
+    code-fold: true
+    code-tools: true
+editor: visual
+execute:
+  warning: false
+  message: false
+  echo: true
+---
+
+## R packages
+
+```{r}
+library(bibliometrix)
+library(tidyverse)
+```
+
+## Combine queries 
+
+Three Web of Science queries were performed:
+
+Query 1: Conceptual 
+
+TS=("spatial model*" AND ("marine conservation" OR "conservation planning") AND management)
+
+Query 2: Model types
+
+TS=("agent-based model*" OR "individual-based model*" OR "Bayesian network*" OR "fuzzy cognitive map*" OR "end-to-end model*" OR "food web model*" OR "species distribution model*" OR "systematic conservation planning")
+AND TS=(marine OR ocean OR fisheries OR coastal)
+
+Query 3: 
+
+TS=("Marxan" OR "prioritizr" OR "SEAPODYM")
+OR TS=("InVEST" AND "ecosystem service*")
+OR TS=("OSMOSE" AND (fish* OR marine))
+OR TS=("Ecopath with Ecosim" OR "Ecopath" AND "Ecosim")
+OR TS=("ATLANTIS" AND (ecosystem OR marine OR model))
+OR TS=("Zonation" AND (conservation OR prioriti*))
+OR TS=("Ecospace" AND (spatial OR marine OR ecosystem))
+
+```{r}
+#| output: false
+#| results: hide
+
+# Query 1 - fichier unique
+wos_q1 <- convert2df("Query 1.txt", dbsource = "wos", format = "plaintext")
+nrow(wos_q1)
+
+# Query 2 - 11 fichiers
+q2_files <- paste0("Query 2_", 1:11, ".txt")
+wos_q2_list <- lapply(q2_files, function(f) {
+  cat("Importing:", f, "\n")
+  convert2df(f, dbsource = "wos", format = "plaintext")
+})
+wos_q2 <- bind_rows(wos_q2_list) |> distinct(DI, .keep_all = TRUE)
+nrow(wos_q2)
+
+# Query 3 - 11 fichiers
+q3_files <- paste0("Query 3_", 1:11, ".txt")
+wos_q3_list <- lapply(q3_files, function(f) {
+  cat("Importing:", f, "\n")
+  convert2df(f, dbsource = "wos", format = "plaintext")
+})
+wos_q3 <- bind_rows(wos_q3_list) |> distinct(DI, .keep_all = TRUE)
+nrow(wos_q3)
+
+# Combiner les trois queries
+all_wos <- bind_rows(
+  wos_q1 |> mutate(query_source = "Q1_conceptual"),
+  wos_q2 |> mutate(query_source = "Q2_model_types"),
+  wos_q3 |> mutate(query_source = "Q3_model_names")
+) |>
+  distinct(DI, .keep_all = TRUE)
+```
+
+```{r}
+cat("Total après déduplication:", nrow(all_wos), "\n")
+
+# Vérifier la contribution de chaque query
+all_wos |> count(query_source)
+```
+
+## Filter queries (Year, Citations)
+
+```{r}
+# Distribution par année
+year_dist <- all_wos |> count(PY) |> arrange(PY)
+#print(as.data.frame(year_dist), row.names = FALSE)
+
+# Ou simplement
+#table(all_wos$PY)
+
+# Filtre temporel : 2010+
+all_wos_2010 <- all_wos |> filter(PY >= 2010)
+cat("Après filtre 2010+:", nrow(all_wos_2010), "\n")
+
+# Distribution des citations
+#summary(all_wos_2010$TC)
+
+# Tester différents seuils de citations
+thresholds <- c(5, 10, 20, 30, 50, 100)
+for (t in thresholds) {
+  n <- all_wos_2010 |> filter(TC >= t) |> nrow()
+  cat("Citations >=", t, ":", n, "papers\n")
+}
+
+# Appliquer le filtre combiné : ≥50 citations OU récent (2023-2025) avec ≥5 citations
+final_wos <- all_wos_2010 |>
+  filter(
+    TC >= 50 | (PY >= 2023 & TC >= 5)
+  )
+
+cat("Final set:", nrow(final_wos), "\n")
+
+# Composition du dataset final
+final_wos |>
+  mutate(category = if_else(PY >= 2023, "Recent (2023-25, ≥5 cites)", "Highly cited (≥50)")) |>
+  count(category)
+
+# Contribution par query
+final_wos |> count(query_source)
+
+# Top articles les plus cités
+#final_wos |>
+#  arrange(desc(TC)) |>
+#  select(TI, PY, TC, SO, query_source) |>
+#  head(15)
+```
+
+# Geographic biais analysis 
+
+```{r}
+# Extraire les pays avec metaTagExtraction
+final_wos <- metaTagExtraction(final_wos, Field = "AU_CO", sep = ";")
+all_wos_2010 <- metaTagExtraction(all_wos_2010, Field = "AU_CO", sep = ";")
+
+# Créer le dataframe countries (APRÈS filtre)
+countries <- final_wos |>
+  select(DI, PY, TC, query_source, AU_CO) |>
+  filter(!is.na(AU_CO)) |>
+  separate_rows(AU_CO, sep = ";") |>
+  mutate(AU_CO = str_trim(AU_CO)) |>
+  filter(AU_CO != "")
+
+# Créer le dataframe countries_before (AVANT filtre citations)
+countries_before <- all_wos_2010 |>
+  select(DI, PY, TC, AU_CO) |>
+  filter(!is.na(AU_CO)) |>
+  separate_rows(AU_CO, sep = ";") |>
+  mutate(AU_CO = str_trim(AU_CO)) |>
+  filter(AU_CO != "")
+
+# Top 20 pays
+#countries |> count(AU_CO, sort = TRUE) |> head(20)
+
+# Liste des pays du Sud global
+global_south <- c(
+  # Afrique
+  "ALGERIA", "ANGOLA", "BENIN", "BOTSWANA", "BURKINA FASO", "BURUNDI", "CAMEROON",
+  "CAPE VERDE", "CENTRAL AFRICAN REPUBLIC", "CHAD", "COMOROS", "CONGO", "COTE IVOIRE",
+  "DEMOCRATIC REPUBLIC OF THE CONGO", "DJIBOUTI", "EGYPT", "EQUATORIAL GUINEA", 
+  "ERITREA", "ESWATINI", "ETHIOPIA", "GABON", "GAMBIA", "GHANA", "GUINEA", "KENYA",
+  "LESOTHO", "LIBERIA", "LIBYA", "MADAGASCAR", "MALAWI", "MALI", "MAURITANIA",
+  "MAURITIUS", "MOROCCO", "MOZAMBIQUE", "NAMIBIA", "NIGER", "NIGERIA", "RWANDA",
+  "SENEGAL", "SEYCHELLES", "SIERRA LEONE", "SOMALIA", "SOUTH AFRICA", "SOUTH SUDAN",
+  "SUDAN", "TANZANIA", "TOGO", "TUNISIA", "UGANDA", "ZAMBIA", "ZIMBABWE",
+  # Amérique latine & Caraïbes
+  "ARGENTINA", "BAHAMAS", "BARBADOS", "BELIZE", "BOLIVIA", "BRAZIL", "CHILE",
+  "COLOMBIA", "COSTA RICA", "CUBA", "DOMINICAN REPUBLIC", "ECUADOR", "EL SALVADOR",
+  "GUATEMALA", "GUYANA", "HAITI", "HONDURAS", "JAMAICA", "MEXICO", "NICARAGUA",
+  "PANAMA", "PARAGUAY", "PERU", "SURINAME", "TRINIDAD AND TOBAGO", "URUGUAY", "VENEZUELA",
+  # Asie du Sud et du Sud-Est
+  "AFGHANISTAN", "BANGLADESH", "BHUTAN", "CAMBODIA", "INDIA", "INDONESIA", "LAOS",
+  "MALAYSIA", "MALDIVES", "MYANMAR", "NEPAL", "PAKISTAN", "PHILIPPINES", "SRI LANKA",
+  "THAILAND", "TIMOR-LESTE", "VIETNAM",
+  # Moyen-Orient
+  "IRAN", "IRAQ", "JORDAN", "LEBANON", "PALESTINE", "SYRIA", "YEMEN",
+  # Asie centrale
+  "KAZAKHSTAN", "KYRGYZSTAN", "TAJIKISTAN", "TURKMENISTAN", "UZBEKISTAN", "MONGOLIA",
+  # Pacifique
+  "FIJI", "PAPUA NEW GUINEA", "SAMOA", "SOLOMON ISLANDS", "TONGA", "VANUATU",
+  "NEW CALEDONIA", "FRENCH POLYNESIA"
+)
+
+# Analyse plus fine de la composition des articles
+articles_detailed <- countries |>
+  mutate(region = if_else(AU_CO %in% global_south, "South", "North")) |>
+  group_by(DI) |>
+  summarise(
+    n_countries = n_distinct(AU_CO),
+    n_south = sum(region == "South"),
+    n_north = sum(region == "North"),
+    pct_south = round(100 * n_south / (n_south + n_north), 1),
+    .groups = "drop"
+  ) |>
+  mutate(
+    category = case_when(
+      pct_south == 100 ~ "Sud uniquement",
+      pct_south >= 50 ~ "Majorité Sud",
+      pct_south > 0 ~ "Minorité Sud (collab)",
+      TRUE ~ "Nord uniquement"
+    )
+  )
+
+# Distribution des catégories
+articles_detailed |> count(category)
+
+# Même analyse AVANT le filtre citations
+articles_before <- countries_before |>
+  mutate(region = if_else(AU_CO %in% global_south, "South", "North")) |>
+  group_by(DI) |>
+  summarise(
+    n_south = sum(region == "South"),
+    n_north = sum(region == "North"),
+    pct_south = round(100 * n_south / (n_south + n_north), 1),
+    .groups = "drop"
+  ) |>
+  mutate(
+    category = case_when(
+      pct_south == 100 ~ "Sud uniquement",
+      pct_south >= 50 ~ "Majorité Sud",
+      pct_south > 0 ~ "Minorité Sud (collab)",
+      TRUE ~ "Nord uniquement"
+    )
+  )
+
+# Comparer avant/après
+comparison <- bind_rows(
+  articles_before |> count(category) |> mutate(dataset = "Avant filtre"),
+  articles_detailed |> count(category) |> mutate(dataset = "Après filtre")
+) |>
+  group_by(dataset) |>
+  mutate(pct = round(100 * n / sum(n), 1)) |>
+  select(dataset, category, n, pct) |>
+  pivot_wider(names_from = dataset, values_from = c(n, pct))
+
+print(comparison)
+
+# Fusionner la catégorie avec le dataset complet
+all_wos_2010 <- all_wos_2010 |>
+  left_join(articles_before |> select(DI, category, pct_south), by = "DI")
+```
+
+## Correction du biais géographique
+
+L'analyse de la distribution géographique des auteurs révèle que le filtre de citations standard (≥50 citations ou ≥5 pour les articles récents) exclut disproportionnellement les publications du Sud global. Les articles sans co-auteur du Nord ("Sud uniquement") voient leur représentation chuter de 8.3% à 4.9% après filtrage — une baisse relative de 41%.
+
+Pour corriger ce biais structurel, nous appliquons des seuils de citations différenciés selon la composition géographique des auteurs :
+
+| Catégorie | Critères d'inclusion |
+|-----------|---------------------|
+| **Nord uniquement** | ≥50 citations, ou ≥5 si publié 2023-2025 |
+| **Minorité Sud (collaboration)** | ≥50 citations, ou ≥5 si publié 2023-2025 |
+| **Majorité Sud** | ≥15 citations, ou ≥2 si publié 2023-2025 |
+| **Sud uniquement** | ≥15 citations, ou ≥2 si publié 2023-2025 |
+
+Cette approche reconnaît que les articles issus du Sud global accumulent structurellement moins de citations en raison de barrières linguistiques, d'effets de réseau, et de la hiérarchie des revues scientifiques.
+
+```{r}
+# Filtre ajusté : seuil réduit pour les articles authentiquement du Sud
+final_wos_adjusted <- all_wos_2010 |>
+  filter(
+    # Critères standards pour le Nord et collaborations
+    (category %in% c("Nord uniquement", "Minorité Sud (collab)") & 
+       (TC >= 50 | (PY >= 2023 & TC >= 5))) |
+    # Seuil réduit pour Sud uniquement et Majorité Sud
+    (category %in% c("Sud uniquement", "Majorité Sud") & 
+       (TC >= 15 | (PY >= 2023 & TC >= 2)))
+  )
+
+cat("Total articles:", nrow(final_wos_adjusted), "\n")
+
+# Vérifier la nouvelle répartition
+final_wos_adjusted |> count(category) |> mutate(pct = round(100 * n / sum(n), 1))
+```
+
+
+
+```{r}
+# Voir les champs disponibles liés aux catégories
+names(final_wos_adjusted)[grep("WC|SC|CA", names(final_wos_adjusted))]
+
+# WC = Web of Science Categories
+# SC = Research Areas
+
+# Distribution des catégories WoS
+final_wos_adjusted |>
+  separate_rows(WC, sep = ";") |>
+  mutate(WC = str_trim(WC)) |>
+  count(WC, sort = TRUE) |>
+  head(30)
+
+# Version élargie
+relevant_categories <- c(
+  "ENVIRONMENTAL SCIENCES",
+  "ECOLOGY",
+  "BIODIVERSITY CONSERVATION",
+  "MARINE & FRESHWATER BIOLOGY",
+  "OCEANOGRAPHY",
+  "FISHERIES",
+  "ENVIRONMENTAL STUDIES",
+  "WATER RESOURCES",
+  "MULTIDISCIPLINARY SCIENCES",
+  "LIMNOLOGY",
+  "ZOOLOGY",
+  "ENGINEERING, OCEAN",
+  "ENGINEERING, MARINE",
+  "REMOTE SENSING",
+  "GEOSCIENCES, MULTIDISCIPLINARY",
+  "GEOGRAPHY, PHYSICAL",
+  "GREEN & SUSTAINABLE SCIENCE & TECHNOLOGY"
+)
+
+final_filtered <- final_wos_adjusted |>
+  filter(str_detect(WC, paste(relevant_categories, collapse = "|")))
+
+cat("Avant filtre catégories:", nrow(final_wos_adjusted), "\n")
+cat("Après filtre catégories (élargi):", nrow(final_filtered), "\n")
+
+# Vérifier ce qu'on perd
+final_wos_adjusted |>
+  filter(!str_detect(WC, paste(relevant_categories, collapse = "|"))) |>
+  separate_rows(WC, sep = ";") |>
+  count(WC, sort = TRUE) |>
+  head(20)
+```
