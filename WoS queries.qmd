@@ -1,7 +1,7 @@
 ---
 title: "WoS queries"
 author: "Théophile L. Mouton"
-date: "January 21, 2026"
+date: "February 13, 2026"
 format:
   html:
     toc: true
@@ -25,69 +25,59 @@ library(bibliometrix)
 library(tidyverse)
 ```
 
-## Combine queries 
+## Import WoS records
 
-Three Web of Science queries were performed:
+Single Web of Science query performed (13/02/2026):
 
-Query 1: Conceptual 
+TS=(
+  ("ecosystem model*" OR "food web model*" OR "bioeconomic model*"
+   OR "bio-economic model*" OR "end-to-end model*" OR "trophic model*"
+   OR "socio-ecological model*" OR "social-ecological model*"
+   OR "socioecological model*" OR "species distribution model*"
+   OR "spatially explicit model*" OR "biogeochemical model*"
+   OR "earth system model*" OR "fisheries model*"
+   OR "qualitative model*" OR "habitat model*"
+   OR "connectivity model*")
+  AND
+  ("protected area*" OR "no-take zone*"
+   OR "conservation planning" OR "spatial planning"
+   OR "area-based management"
+   OR "zonation" OR "zoning" OR "prioriti?ation"
+   OR "reserve design" OR "reserve network" OR "site selection"
+   OR "fisheries management" OR "ecosystem-based management"
+   OR "decision support" OR "decision making"
+   OR "management strategy evaluation"
+   OR "socio-ecological" OR "social-ecological" OR "socioecological"
+   OR "ecosystem approach" OR "adaptive management"
+   OR "trade-off*" OR "optimi?ation"
+   OR "cost-effectiveness" OR "cost-benefit"
+   OR "impact assessment" OR "ecosystem service*"
+   OR "risk assessment")
+  AND
+  ("marine" OR "ocean*" OR "coastal" OR "fish*"
+   OR "reef*" OR "pelagic" OR "sea"
+   OR "seagrass" OR "mangrove" OR "lagoon*"
+   OR "estuar*" OR "benthic" OR "shore*" OR "intertidal")
+)
 
-TS=("spatial model*" AND ("marine conservation" OR "conservation planning") AND management)
-
-Query 2: Model types
-
-TS=("agent-based model*" OR "individual-based model*" OR "Bayesian network*" OR "fuzzy cognitive map*" OR "end-to-end model*" OR "food web model*" OR "species distribution model*" OR "systematic conservation planning")
-AND TS=(marine OR ocean OR fisheries OR coastal)
-
-Query 3: 
-
-TS=("Marxan" OR "prioritizr" OR "SEAPODYM")
-OR TS=("InVEST" AND "ecosystem service*")
-OR TS=("OSMOSE" AND (fish* OR marine))
-OR TS=("Ecopath with Ecosim" OR "Ecopath" AND "Ecosim")
-OR TS=("ATLANTIS" AND (ecosystem OR marine OR model))
-OR TS=("Zonation" AND (conservation OR prioriti*))
-OR TS=("Ecospace" AND (spatial OR marine OR ecosystem))
+Results: 3,715 articles.
 
 ```{r}
 #| output: false
 #| results: hide
 
-# Query 1 - fichier unique
-wos_q1 <- convert2df("Query 1.txt", dbsource = "wos", format = "plaintext")
-nrow(wos_q1)
+# Import 8 WoS export files
+wos_files <- paste0("WoS_query_", 1:8, ".txt")
 
-# Query 2 - 11 fichiers
-q2_files <- paste0("Query 2_", 1:11, ".txt")
-wos_q2_list <- lapply(q2_files, function(f) {
-  cat("Importing:", f, "\n")
-  convert2df(f, dbsource = "wos", format = "plaintext")
+wos_list <- lapply(wos_files, function(f) {
+  convert2df(here::here("WoS_query_130226", f), dbsource = "wos", format = "plaintext")
 })
-wos_q2 <- bind_rows(wos_q2_list) |> distinct(DI, .keep_all = TRUE)
-nrow(wos_q2)
 
-# Query 3 - 11 fichiers
-q3_files <- paste0("Query 3_", 1:11, ".txt")
-wos_q3_list <- lapply(q3_files, function(f) {
-  cat("Importing:", f, "\n")
-  convert2df(f, dbsource = "wos", format = "plaintext")
-})
-wos_q3 <- bind_rows(wos_q3_list) |> distinct(DI, .keep_all = TRUE)
-nrow(wos_q3)
-
-# Combiner les trois queries
-all_wos <- bind_rows(
-  wos_q1 |> mutate(query_source = "Q1_conceptual"),
-  wos_q2 |> mutate(query_source = "Q2_model_types"),
-  wos_q3 |> mutate(query_source = "Q3_model_names")
-) |>
-  distinct(DI, .keep_all = TRUE)
+all_wos <- bind_rows(wos_list) |> distinct(DI, .keep_all = TRUE)
 ```
 
 ```{r}
-cat("Total après déduplication:", nrow(all_wos), "\n")
-
-# Vérifier la contribution de chaque query
-all_wos |> count(query_source)
+cat("Total after deduplication:", nrow(all_wos), "\n")
 ```
 
 ## Filter queries (Year, Citations)
@@ -114,21 +104,18 @@ for (t in thresholds) {
   cat("Citations >=", t, ":", n, "papers\n")
 }
 
-# Appliquer le filtre combiné : ≥50 citations OU récent (2023-2025) avec ≥5 citations
+# Combined filter: >=30 citations OR recent (2023-2025) with >=5 citations
 final_wos <- all_wos_2010 |>
   filter(
-    TC >= 50 | (PY >= 2023 & TC >= 5)
+    TC >= 30 | (PY >= 2023 & TC >= 5)
   )
 
 cat("Final set:", nrow(final_wos), "\n")
 
 # Composition du dataset final
 final_wos |>
-  mutate(category = if_else(PY >= 2023, "Recent (2023-25, ≥5 cites)", "Highly cited (≥50)")) |>
+  mutate(category = if_else(PY >= 2023, "Recent (2023-25, ≥5 cites)", "Highly cited (≥30)")) |>
   count(category)
-
-# Contribution par query
-final_wos |> count(query_source)
 
 # Top articles les plus cités
 #final_wos |>
@@ -146,7 +133,7 @@ all_wos_2010 <- metaTagExtraction(all_wos_2010, Field = "AU_CO", sep = ";")
 
 # Créer le dataframe countries (APRÈS filtre)
 countries <- final_wos |>
-  select(DI, PY, TC, query_source, AU_CO) |>
+  select(DI, PY, TC, AU_CO) |>
   filter(!is.na(AU_CO)) |>
   separate_rows(AU_CO, sep = ";") |>
   mutate(AU_CO = str_trim(AU_CO)) |>
@@ -244,25 +231,25 @@ comparison <- bind_rows(
   select(dataset, category, n, pct) |>
   pivot_wider(names_from = dataset, values_from = c(n, pct))
 
-print(comparison)
+print(comparison, width = Inf)
 
 # Fusionner la catégorie avec le dataset complet
 all_wos_2010 <- all_wos_2010 |>
   left_join(articles_before |> select(DI, category, pct_south), by = "DI")
 ```
 
-## Correction du biais géographique
+Correction du biais géographique
 
-L'analyse de la distribution géographique des auteurs révèle que le filtre de citations standard (≥50 citations ou ≥5 pour les articles récents) exclut disproportionnellement les publications du Sud global. Les articles sans co-auteur du Nord ("Sud uniquement") voient leur représentation chuter de 8.3% à 4.9% après filtrage — une baisse relative de 41%.
+L'analyse de la distribution géographique des auteurs révèle que le filtre de citations standard (≥30 citations ou ≥5 pour les articles récents) exclut disproportionnellement les publications du Sud global. Les articles sans co-auteur du Nord ("Sud uniquement") voient leur représentation chuter de 5.8% à 3.0% après filtrage - une baisse relative de 48%. Les articles à majorité Sud passent de 5.4% à 3.9% (-28%).
 
 Pour corriger ce biais structurel, nous appliquons des seuils de citations différenciés selon la composition géographique des auteurs :
 
 | Catégorie | Critères d'inclusion |
 |-----------|---------------------|
-| **Nord uniquement** | ≥50 citations, ou ≥5 si publié 2023-2025 |
-| **Minorité Sud (collaboration)** | ≥50 citations, ou ≥5 si publié 2023-2025 |
-| **Majorité Sud** | ≥15 citations, ou ≥2 si publié 2023-2025 |
-| **Sud uniquement** | ≥15 citations, ou ≥2 si publié 2023-2025 |
+| **Nord uniquement** | ≥30 citations, ou ≥5 si publié 2023-2025 |
+| **Minorité Sud (collaboration)** | ≥30 citations, ou ≥5 si publié 2023-2025 |
+| **Majorité Sud** | ≥10 citations, ou ≥2 si publié 2023-2025 |
+| **Sud uniquement** | ≥10 citations, ou ≥2 si publié 2023-2025 |
 
 Cette approche reconnaît que les articles issus du Sud global accumulent structurellement moins de citations en raison de barrières linguistiques, d'effets de réseau, et de la hiérarchie des revues scientifiques.
 
@@ -272,16 +259,11 @@ final_wos_adjusted <- all_wos_2010 |>
   filter(
     # Critères standards pour le Nord et collaborations
     (category %in% c("Nord uniquement", "Minorité Sud (collab)") & 
-       (TC >= 50 | (PY >= 2023 & TC >= 5))) |
+       (TC >= 30 | (PY >= 2023 & TC >= 5))) |
     # Seuil réduit pour Sud uniquement et Majorité Sud
     (category %in% c("Sud uniquement", "Majorité Sud") & 
-       (TC >= 15 | (PY >= 2023 & TC >= 2)))
+       (TC >= 10 | (PY >= 2023 & TC >= 2)))
   )
-
-cat("Total articles:", nrow(final_wos_adjusted), "\n")
-
-# Vérifier la nouvelle répartition
-final_wos_adjusted |> count(category) |> mutate(pct = round(100 * n / sum(n), 1))
 ```
 
 # Filtering by WoS category (domain/topic)
@@ -298,7 +280,8 @@ final_wos_adjusted |>
   separate_rows(WC, sep = ";") |>
   mutate(WC = str_trim(WC)) |>
   count(WC, sort = TRUE) |>
-  head(30)
+  head(30) |>
+  print(n = 30)
 
 # Version élargie
 relevant_categories <- c(
@@ -318,14 +301,18 @@ relevant_categories <- c(
   "REMOTE SENSING",
   "GEOSCIENCES, MULTIDISCIPLINARY",
   "GEOGRAPHY, PHYSICAL",
-  "GREEN & SUSTAINABLE SCIENCE & TECHNOLOGY"
+  "GREEN & SUSTAINABLE SCIENCE & TECHNOLOGY",
+  "INTERNATIONAL RELATIONS",
+  "ECONOMICS",
+  "BIOLOGY"
 )
 
 final_filtered <- final_wos_adjusted |>
   filter(str_detect(WC, paste(relevant_categories, collapse = "|")))
 
-cat("Avant filtre catégories:", nrow(final_wos_adjusted), "\n")
-cat("Après filtre catégories (élargi):", nrow(final_filtered), "\n")
+cat("Before category filter:", nrow(final_wos_adjusted), "\n")
+cat("After category filter:", nrow(final_filtered), "\n")
+cat("Lost:", nrow(final_wos_adjusted) - nrow(final_filtered), "\n")
 
 # Vérifier ce qu'on perd
 final_wos_adjusted |>
@@ -335,8 +322,73 @@ final_wos_adjusted |>
   head(20)
 ```
 
-
+## Export to ASReview 
 
 ```{r}
+# Vérifier la présence des abstracts dans le corpus final
+final_filtered |> 
+  summarise(
+    total_articles = n(),
+    has_abstract = sum(!is.na(AB) & AB != ""),
+    pct_abstract = round(100 * has_abstract / total_articles, 1)
+  )
 
+# Longueur moyenne des abstracts
+final_filtered |> 
+  filter(!is.na(AB) & AB != "") |> 
+  mutate(abstract_length = nchar(AB)) |> 
+  summarise(
+    mean_length = round(mean(abstract_length)),
+    min_length = min(abstract_length),
+    max_length = max(abstract_length)
+  )
+
+# Aperçu d'un abstract
+final_filtered |> 
+  filter(!is.na(AB)) |> 
+  slice(1) |> 
+  pull(AB) |> 
+  str_trunc(500)
+
+# Export CSV pour ASReview
+final_filtered |> 
+  transmute(
+    title = TI,
+    abstract = AB,
+    authors = AU,
+    year = PY,
+    journal = SO,
+    doi = DI,
+    keywords = DE,
+    notes = paste("Citations:", TC, "| Category:", category)
+  ) |> 
+  write_csv(here::here("WoS_query_130226", "BRIDGES_asreview.csv"))
+```
+
+```{r}
+# 1. Document types (exclude editorials, letters, corrections?)
+final_filtered |> count(DT, sort = TRUE)
+
+# 2. Language (non-English articles?)
+final_filtered |> count(LA, sort = TRUE)
+
+# 3. Missing DOIs (will complicate PDF retrieval later)
+final_filtered |> 
+  summarise(
+    total = n(),
+    missing_doi = sum(is.na(DI) | DI == ""),
+    pct_missing = round(100 * missing_doi / total, 1)
+  )
+
+# 4. The 3 articles without abstracts
+final_filtered |> 
+  filter(is.na(AB) | AB == "") |> 
+  select(TI, PY, SO, DI)
+
+# 5. Potential duplicate titles (different DOIs)
+final_filtered |> 
+  group_by(TI) |> 
+  filter(n() > 1) |> 
+  select(TI, PY, SO, DI, TC) |> 
+  arrange(TI)
 ```
