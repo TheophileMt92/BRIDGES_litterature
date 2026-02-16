@@ -80,6 +80,36 @@ all_wos <- bind_rows(wos_list) |> distinct(DI, .keep_all = TRUE)
 cat("Total after deduplication:", nrow(all_wos), "\n")
 ```
 
+```{r}
+## Random samples for calibration exercise
+
+set.seed(42) # for reproducibility
+
+# Random sample of 100 articles
+sample_100 <- all_wos |> slice_sample(n = 100)
+
+# Random subset of 33 from the 100 (common set for all screeners)
+sample_33 <- sample_100 |> slice_sample(n = 33)
+
+cat("Sample 100:", nrow(sample_100), "\n")
+cat("Sample 33 (common):", nrow(sample_33), "\n")
+
+# Export
+sample_100 |>
+  transmute(
+    title = TI, abstract = AB, authors = AU,
+    year = PY, journal = SO, doi = DI, keywords = DE
+  ) |>
+  write_csv(here::here("WoS_query_130226", "BRIDGES_sample_100.csv"))
+
+sample_33 |>
+  transmute(
+    title = TI, abstract = AB, authors = AU,
+    year = PY, journal = SO, doi = DI, keywords = DE
+  ) |>
+  write_csv(here::here("WoS_query_130226", "BRIDGES_sample_33.csv"))
+```
+
 ## Filter queries (Year, Citations)
 
 ```{r}
