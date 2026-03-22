@@ -1,0 +1,714 @@
+---
+title: "openalexR"
+author: "Théophile L. Mouton"
+date: "January 21, 2026"
+format:
+  html:
+    toc: true
+    toc-location: right
+    css: custom.css
+    output-file: "openalexR.html"
+    self-contained: true
+    code-fold: true
+    code-tools: true
+editor: visual
+execute:
+  warning: false
+  message: false
+  echo: true
+---
+
+# Literature search for scoping review - BRIDGES project
+# Using OpenAlex via openalexR
+
+## Load packages and setup 
+```{r}
+# Load packages --------------------------------------------------------------
+library(openalexR)
+library(dplyr)
+library(writexl)
+library(ggplot2)
+library(tidyverse)
+library(DiagrammeR)
+library(DiagrammeRsvg)
+library(rsvg)
+
+# Setup: Add your email for faster API responses -----------------------------
+options(openalexR.mailto = "theophile.mouton92@gmail.com")  # Replace with your email
+```
+
+## Query 1: Conceptual approach (broad)
+### Models/tools + Spatial + Domain + Application
+
+```{r}
+# Query 1 with no date limit
+# Ajouter au début du script, après le chargement des packages
+httr::set_config(httr::timeout(120))  # 120 secondes au lieu de 30
+query1 <- oa_fetch(
+  entity = "works",
+  title_and_abstract.search = "spatial model management marine conservation planning",
+  to_publication_date = "2025-12-31",
+  type = "article",
+  verbose = TRUE
+)
+
+nrow(query1)
+
+# Check the year distribution — this will tell us if there's much pre-2000
+# query1 |> 
+#  count(publication_year) |> 
+#  arrange(publication_year) |> 
+#  print(n = 50)
+
+# Create cumulative data
+query1_cumulative <- query1 |> 
+  count(publication_year) |> 
+  arrange(publication_year) |> 
+  mutate(cumulative = cumsum(n))
+
+# Plot cumulative curve
+ggplot(query1_cumulative, aes(x = publication_year, y = cumulative)) +
+  geom_line(color = "steelblue", linewidth = 1.2) +
+  geom_point(color = "steelblue", size = 2) +
+  labs(
+    title = "Cumulative publications over time",
+    subtitle = "Query 1: Spatial model + marine conservation planning",
+    x = "Publication year",
+    y = "Cumulative number of papers"
+  ) +
+  theme_minimal()
+
+# Most cited papers (good quality check)
+query1 |> 
+  arrange(desc(cited_by_count)) |> 
+  select(display_name, publication_year, cited_by_count) |> 
+  head(10)
+```
+
+## Query 2: Model types + Socio-ecological systems
+
+```{r}
+# Query 2: Search each model type separately
+# Now download all
+model_types_refined <- c(
+  "agent-based model marine management",
+  "individual-based model fisheries",
+  "Bayesian network ecological decision",
+  "fuzzy cognitive map ecosystem",
+  "end-to-end marine ecosystem model",
+  "food web model fisheries management",
+  "species distribution model marine protected area",
+  "systematic conservation planning marine"
+)
+
+# Ajouter en haut du script
+httr::set_config(httr::timeout(120))
+
+# Remplacer la fonction search_term par cette version plus robuste
+search_term <- function(term, max_retries = 3, delay = 5) {
+  cat("Searching:", term, "\n")
+  
+  for (attempt in 1:max_retries) {
+    tryCatch({
+      result <- oa_fetch(
+        entity = "works",
+        title_and_abstract.search = term,
+        to_publication_date = "2025-12-31",
+        type = "article",
+        paging = "page",
+        per_page = 200,
+        verbose = FALSE
+      )
+      
+      if (!is.null(result) && nrow(result) > 0) {
+        result$search_term <- term
+        cat("  ✓ Found", nrow(result), "papers\n")
+        Sys.sleep(2)  # Pause entre requêtes réussies
+        return(result)
+      } else {
+        cat("  ✓ No results\n")
+        return(NULL)
+      }
+      
+    }, error = function(e) {
+      if (attempt < max_retries) {
+        cat("  ⚠ Attempt", attempt, "failed, retrying in", delay, "sec...\n")
+        Sys.sleep(delay)
+      } else {
+        cat("  ✗ Failed after", max_retries, "attempts:", conditionMessage(e), "\n")
+      }
+    })
+  }
+  return(NULL)
+}
+
+# Puis relancer
+query2_list <- lapply(model_types_refined, search_term)
+query2 <- bind_rows(query2_list)
+
+nrow(query2)
+
+# Check results per term
+query2 |> count(search_term, sort = TRUE)
+
+# Year distribution
+#query2 |> 
+#  count(publication_year) |> 
+#  arrange(publication_year) |> 
+#  print(n = 50)
+
+# Create cumulative data for query2
+query2_cumulative <- query2 |> 
+  count(publication_year) |> 
+  arrange(publication_year) |> 
+  mutate(cumulative = cumsum(n))
+
+# Plot cumulative curve
+ggplot(query2_cumulative, aes(x = publication_year, y = cumulative)) +
+  geom_line(color = "darkorange", linewidth = 1.2) +
+  geom_point(color = "darkorange", size = 2) +
+  labs(
+    title = "Cumulative publications over time",
+    subtitle = "Query 2: Model types (ABM, Bayesian networks, end-to-end, etc.)",
+    x = "Publication year",
+    y = "Cumulative number of papers"
+  ) +
+  theme_minimal()
+
+# Quick relevance check
+query2 |> 
+  arrange(desc(cited_by_count)) |> 
+  select(display_name, publication_year, cited_by_count) |> 
+  head(10)
+
+```
+
+## Query 3: Specific model names
+
+```{r}
+# Final model names
+model_names <- c(
+  "Marxan conservation",
+  "InVEST natural capital",
+  "OSMOSE fish model",
+  "Ecopath Ecosim",
+  "ATLANTIS ecosystem model",
+  "prioritizr conservation",
+  "Zonation software conservation",
+  "SEAPODYM tuna",
+  "Ecospace spatial"
+)
+
+search_model <- function(term) {
+  cat("Searching:", term, "\n")
+  tryCatch({
+    result <- oa_fetch(
+      entity = "works",
+      title_and_abstract.search = term,
+      to_publication_date = "2025-12-31",
+      type = "article",
+      verbose = FALSE
+    )
+    if (!is.null(result) && nrow(result) > 0) {
+      result$search_term <- term
+      return(result)
+    }
+  }, error = function(e) {
+    message("Error searching for: ", term)
+    return(NULL)
+  })
+}
+
+query3_list <- lapply(model_names, search_model)
+query3 <- bind_rows(query3_list)
+
+nrow(query3)
+
+# Check results per model
+query3 |> count(search_term, sort = TRUE)
+
+# Create cumulative data for query3
+query3_cumulative <- query3 |> 
+  count(publication_year) |> 
+  arrange(publication_year) |> 
+  mutate(cumulative = cumsum(n))
+
+# Plot cumulative curve
+ggplot(query3_cumulative, aes(x = publication_year, y = cumulative)) +
+  geom_line(color = "forestgreen", linewidth = 1.2) +
+  geom_point(color = "forestgreen", size = 2) +
+  labs(
+    title = "Cumulative publications over time",
+    subtitle = "Query 3: Specific models (Marxan, InVEST, OSMOSE, Ecopath, ATLANTIS, etc.)",
+    x = "Publication year",
+    y = "Cumulative number of papers"
+  ) +
+  theme_minimal()
+```
+
+## Combine all three approaches 
+
+```{r}
+# Add source identifier to each query
+query1$query_source <- "Q1_conceptual"
+query2$query_source <- "Q2_model_types"
+query3$query_source <- "Q3_model_names"
+
+# Combine all results
+all_results <- bind_rows(query1, query2, query3)
+cat("Total before deduplication:", nrow(all_results), "\n")
+
+# Remove duplicates based on DOI
+all_results_unique <- all_results |> 
+  filter(!is.na(doi)) |> 
+  distinct(doi, .keep_all = TRUE)
+
+cat("Total after deduplication:", nrow(all_results_unique), "\n")
+
+# Check overlap between queries
+all_results |> 
+  filter(!is.na(doi)) |> 
+  group_by(doi) |> 
+  summarise(sources = paste(unique(query_source), collapse = " + ")) |> 
+  count(sources, sort = TRUE)
+
+# Year distribution with cumulative count
+year_dist <- all_results_unique |> 
+  count(publication_year) |> 
+  arrange(publication_year) |> 
+  mutate(
+    cumulative = cumsum(n),
+    pct_of_total = round(100 * cumulative / sum(n), 1)
+  )
+
+#print(year_dist, n = 50)
+
+# Plot combined results (all queries deduplicated)
+ggplot(year_dist, aes(x = publication_year, y = cumulative)) +
+  geom_line(color = "purple", linewidth = 1.2) +
+  geom_point(color = "purple", size = 2) +
+  labs(
+    title = "Cumulative publications over time",
+    subtitle = "All queries combined (deduplicated)",
+    x = "Publication year",
+    y = "Cumulative number of papers"
+  ) +
+  theme_minimal()
+
+# Quick visual in console
+year_dist |> 
+  filter(publication_year >= 2000) |> 
+  mutate(bar = strrep("█", round(n/50))) |> 
+  select(publication_year, n, bar) |> 
+  print(n = 30)
+
+# Check open access status
+all_results_unique |> 
+  count(is_oa) |> 
+  mutate(pct = round(100 * n / sum(n), 1))
+```
+
+## Quality filter 
+
+```{r}
+# Keep only well-cited papers (quality filter)
+filtered <- all_results_unique |> 
+  filter(
+    publication_year >= 2010,
+    cited_by_count >= 10  # At least 10 citations
+  )
+nrow(filtered)
+
+# Try different citation thresholds
+thresholds <- c(5, 10, 20, 30, 50, 100)
+
+for (t in thresholds) {
+  n <- all_results_unique |> 
+    filter(publication_year >= 2010, cited_by_count >= t) |> 
+    nrow()
+  cat("Citations >=", t, ":", n, "papers\n")
+}
+
+# Open access status
+all_results_unique |> 
+  filter(publication_year >= 2010) |> 
+  count(is_oa) |> 
+  mutate(pct = round(100 * n / sum(n), 1))
+
+# Final filtered set: highly cited OR recent
+final_set <- all_results_unique |> 
+  filter(publication_year >= 2010) |> 
+  filter(
+    cited_by_count >= 50 | publication_year >= 2023
+  )
+
+nrow(final_set)
+
+# Check the composition
+final_set |> 
+  mutate(category = if_else(publication_year >= 2023, "Recent (2023-25)", "Highly cited (≥50)")) |> 
+  count(category)
+
+# Option A: Smaller recent window (just 2024-2025)
+option_a <- all_results_unique |> 
+  filter(publication_year >= 2010) |> 
+  filter(cited_by_count >= 50 | publication_year >= 2024)
+cat("Option A (2024-25 recent):", nrow(option_a), "\n")
+
+# Option B: Add mild citation filter for recent papers too
+option_b <- all_results_unique |> 
+  filter(publication_year >= 2010) |> 
+  filter(
+    cited_by_count >= 50 | 
+      (publication_year >= 2023 & cited_by_count >= 5)
+  )
+cat("Option B (recent with ≥5 cites):", nrow(option_b), "\n")
+
+# Option C: Higher threshold overall
+option_c <- all_results_unique |> 
+  filter(publication_year >= 2010) |> 
+  filter(cited_by_count >= 30 | publication_year >= 2024)
+cat("Option C (≥30 cites + 2024-25):", nrow(option_c), "\n")
+
+# Final selection
+final_set <- all_results_unique |> 
+  filter(publication_year >= 2010) |> 
+  filter(
+    cited_by_count >= 50 | 
+      (publication_year >= 2023 & cited_by_count >= 5)
+  )
+
+# Quick quality check - top papers
+final_set |> 
+  arrange(desc(cited_by_count)) |> 
+  select(display_name, publication_year, cited_by_count, query_source) |> 
+  head(15)
+
+# Export to Excel
+export_df <- final_set |> 
+  select(
+    title = display_name,
+    year = publication_year,
+    journal = source_display_name,
+    doi,
+    abstract,
+    cited_by_count,
+    is_oa,
+    oa_url,
+    pdf_url,
+    query_source,
+    search_term
+  )
+
+write_xlsx(export_df, "bridges_scoping_review_1174_papers.xlsx")
+cat("Exported to: bridges_scoping_review_1174_papers.xlsx\n")
+
+# Also export DOIs for Zotero import
+dois <- final_set |> 
+  filter(!is.na(doi)) |> 
+  pull(doi)
+
+writeLines(dois, "dois_for_zotero.txt")
+cat("DOI list exported to: dois_for_zotero.txt (", length(dois), "DOIs)\n")
+
+```
+
+```{r}
+## Analyse de la distribution géographique
+
+# Fonction pour extraire les pays des auteurs
+extract_countries <- function(df) {
+  df |>
+    select(id, display_name, publication_year, cited_by_count, author) |>
+    unnest(author, names_sep = "_") |>
+    unnest(author_institutions, names_sep = "_") |>
+    filter(!is.na(author_institutions_country_code))
+}
+
+# Appliquer aux données post-2010 (avant filtre citations)
+geo_all <- all_results_unique |>
+  filter(publication_year >= 2010) |>
+  extract_countries()
+
+# Appliquer au dataset filtré
+geo_filtered <- final_set |>
+  extract_countries()
+
+# Liste des pays du Sud global (classification Banque Mondiale LMIC + quelques ajustements)
+global_south <- c(
+ # Afrique
+  "DZ", "AO", "BJ", "BW", "BF", "BI", "CV", "CM", "CF", "TD", "KM", "CG", "CD",
+  "CI", "DJ", "EG", "GQ", "ER", "SZ", "ET", "GA", "GM", "GH", "GN", "GW", "KE",
+  "LS", "LR", "LY", "MG", "MW", "ML", "MR", "MU", "MA", "MZ", "NA", "NE", "NG",
+  "RW", "ST", "SN", "SC", "SL", "SO", "ZA", "SS", "SD", "TZ", "TG", "TN", "UG",
+  "ZM", "ZW",
+  # Amérique latine & Caraïbes
+  "AR", "BS", "BB", "BZ", "BO", "BR", "CL", "CO", "CR", "CU", "DM", "DO", "EC",
+  "SV", "GD", "GT", "GY", "HT", "HN", "JM", "MX", "NI", "PA", "PY", "PE", "KN",
+  "LC", "VC", "SR", "TT", "UY", "VE",
+  # Asie du Sud et du Sud-Est
+  "AF", "BD", "BT", "KH", "IN", "ID", "LA", "MY", "MV", "MM", "NP", "PK", "PH",
+  "LK", "TH", "TL", "VN",
+  # Moyen-Orient (sélection)
+  "IR", "IQ", "JO", "LB", "PS", "SY", "YE",
+  # Asie centrale
+  "KZ", "KG", "TJ", "TM", "UZ", "MN",
+  # Pacifique
+  "FJ", "PG", "WS", "SB", "TO", "VU", "NC", "PF"
+)
+
+# Comparer la représentation
+compare_geo <- function(geo_df, label) {
+  geo_df |>
+    distinct(id, author_institutions_country_code) |>  # Un pays par article
+    mutate(region = if_else(
+      author_institutions_country_code %in% global_south,
+      "Global South", "Global North"
+    )) |>
+    distinct(id, region) |>  # Articles avec au moins un auteur de chaque région
+    count(region) |>
+    mutate(
+      dataset = label,
+      pct = round(100 * n / sum(n), 1)
+    )
+}
+
+comparison <- bind_rows(
+  compare_geo(geo_all, "Avant filtre citations"),
+  compare_geo(geo_filtered, "Après filtre citations")
+)
+
+# Visualisation
+ggplot(comparison, aes(x = dataset, y = pct, fill = region)) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = paste0(pct, "%")), 
+            position = position_dodge(width = 0.9), vjust = -0.5) +
+  scale_fill_manual(values = c("Global South" = "#e07b39", "Global North" = "#2c7bb6")) +
+  labs(
+    title = "Impact du filtre de citations sur la représentation géographique",
+    x = NULL, y = "% des articles", fill = NULL
+  ) +
+  theme_minimal() +
+  theme(legend.position = "top")
+
+# Top 20 pays avant/après
+top_countries <- geo_all |>
+  distinct(id, author_institutions_country_code, .keep_all = TRUE) |>
+  count(author_institutions_country_code, name = "n_all") |>
+  left_join(
+    geo_filtered |>
+      distinct(id, author_institutions_country_code) |>
+      count(author_institutions_country_code, name = "n_filtered"),
+    by = "author_institutions_country_code"
+  ) |>
+  mutate(
+    n_filtered = replace_na(n_filtered, 0),
+    retention_rate = round(100 * n_filtered / n_all, 1),
+    region = if_else(author_institutions_country_code %in% global_south, "South", "North")
+  ) |>
+  arrange(desc(n_all)) |>
+  head(30)
+
+print(top_countries)
+
+# Articles du Sud global exclus par le filtre (potentiellement à récupérer)
+excluded_south <- all_results_unique |>
+  filter(publication_year >= 2010) |>
+  extract_countries() |>
+  filter(author_institutions_country_code %in% global_south) |>
+  distinct(id, .keep_all = TRUE) |>
+  anti_join(final_set, by = "id") |>
+  arrange(desc(cited_by_count)) |>
+  select(display_name, publication_year, cited_by_count, author_institutions_country_code) |>
+  head(50)
+
+cat("Articles du Sud global exclus par le filtre citations:\n")
+print(excluded_south, n = 30)
+```
+
+## Selection methodology
+
+### Search strategy
+
+We conducted a systematic literature search using the OpenAlex database via the `openalexR` package in R. OpenAlex is an open-access bibliographic database containing over 200 million scholarly works, comparable in coverage to Web of Science and Scopus.
+
+OpenAlex employs a relevance-based search algorithm that matches natural language queries against paper titles and abstracts. Three complementary search strategies were used: (1) a conceptual search targeting spatial models for marine and terrestrial management, (2) searches for specific model types (e.g., agent-based models, Bayesian networks, end-to-end ecosystem models), and (3) searches for named modeling tools (e.g., Marxan, InVEST, ATLANTIS, Ecopath with Ecosim):
+```{r}
+#| label: tbl-queries
+#| tbl-cap: "Search queries used in the literature review"
+
+query_table <- tibble::tribble(
+  ~Query, ~Strategy, ~`Search terms`, ~`Papers found`,
+  "Q1", "Conceptual approach", "spatial model management marine conservation planning", "391",
+  "Q2", "Model types", "agent-based model, individual-based model, Bayesian network, fuzzy cognitive map, end-to-end model, food web model, species distribution model, systematic conservation planning (with marine/ecological qualifiers)", "4,925",
+  "Q3", "Specific model names", "Marxan, InVEST, OSMOSE, Ecopath Ecosim, ATLANTIS, prioritizr, Zonation, SEAPODYM, Ecospace", "5,417"
+)
+
+knitr::kable(query_table)
+```
+
+### Selection process
+```{r}
+#| label: tbl-selection
+#| tbl-cap: "Paper selection process"
+
+selection_table <- tibble::tribble(
+  ~Stage, ~`Papers`, ~`Action`,
+  "Initial search", "10,733", "Combined results from Q1, Q2, Q3",
+  "After deduplication", "8,204", "Removed duplicate DOIs",
+  "Year filter", "~6,600", "Retained papers from 2010 onwards",
+  "Citation filter", "1,174", "Applied quality and recency filters (see below)"
+)
+
+knitr::kable(selection_table)
+```
+
+### Inclusion criteria for final dataset
+
+To ensure a manageable corpus of high-quality and relevant papers, we applied the following filters:
+
+1. **Temporal scope**: Publications from 2010 onwards, capturing the main growth period of spatial decision-support modeling (96% of the literature)
+
+2. **Quality filter**: Papers with ≥50 citations, ensuring inclusion of influential and well-established work
+
+3. **Recency exception**: Papers from 2023–2025 with ≥5 citations, to capture emerging tools and methods that have not yet had time to accumulate citations
+```{r}
+#| label: tbl-final
+#| tbl-cap: "Composition of final dataset"
+
+final_composition <- tibble::tribble(
+  ~Category, ~Papers, ~Description,
+  "Highly cited (≥50 citations)", "721", "Influential papers from 2010–2022",
+  "Recent with traction (≥5 citations)", "453", "Emerging work from 2023–2025",
+  "**Total**", "**1,174**", "Final corpus for screening"
+)
+
+knitr::kable(final_composition)
+```
+
+### Open access availability
+```{r}
+#| label: tbl-oa
+#| tbl-cap: "Open access status of final dataset"
+
+oa_status <- final_set |> 
+  count(is_oa) |> 
+  mutate(
+    Status = if_else(is_oa, "Open Access", "Paywalled"),
+    Percentage = paste0(round(100 * n / sum(n), 1), "%")
+  ) |> 
+  select(Status, Papers = n, Percentage)
+
+knitr::kable(oa_status)
+```
+
+Approximately 60% of the selected papers are openly accessible, facilitating full-text retrieval for the review.
+
+## PRISMA flow diagram 
+
+```{r}
+#| label: fig-prisma
+#| fig-cap: "PRISMA flow diagram of the literature selection process"
+
+prisma <- grViz("
+digraph prisma {
+  
+  # Graph settings
+  graph [layout = dot, rankdir = TB, splines = line, nodesep = 0.5]
+  
+  # Node settings
+  node [shape = rectangle, style = filled, fillcolor = white, 
+        fontname = Helvetica, fontsize = 11, width = 3]
+  
+  # Identification
+  subgraph cluster_id {
+    label = 'Identification'
+    labelloc = t
+    labeljust = l
+    style = rounded
+    bgcolor = '#e8f4f8'
+    
+    id1 [label = 'Records identified through\\nOpenAlex database searching\\n(n = 10,733)']
+    id2 [label = 'Q1: Conceptual approach (n = 391)\\nQ2: Model types (n = 4,925)\\nQ3: Specific models (n = 5,417)', 
+         fillcolor = '#d4edda']
+  }
+  
+  # Screening
+  subgraph cluster_screen {
+    label = 'Screening'
+    labelloc = t
+    labeljust = l
+    style = rounded
+    bgcolor = '#fff3cd'
+    
+    sc1 [label = 'Records after duplicates removed\\n(n = 8,204)']
+    sc2 [label = 'Records excluded:\\nPre-2010 publications\\n(n = ~1,600)', fillcolor = '#f8d7da']
+    sc3 [label = 'Records from 2010 onwards\\n(n = ~6,600)']
+  }
+  
+  # Eligibility
+  subgraph cluster_elig {
+    label = 'Eligibility'
+    labelloc = t
+    labeljust = l
+    style = rounded
+    bgcolor = '#e2e3f3'
+    
+    el1 [label = 'Records assessed for\\ncitation impact\\n(n = ~6,600)']
+    el2 [label = 'Records excluded:\\nLow citation count\\n(<50 citations for 2010-2022)\\n(<5 citations for 2023-2025)\\n(n = ~5,400)', fillcolor = '#f8d7da']
+    el3 [label = 'Records meeting\\ncitation criteria\\n(n = 1,174)']
+  }
+  
+  # Included
+  subgraph cluster_inc {
+    label = 'Included'
+    labelloc = t
+    labeljust = l
+    style = rounded
+    bgcolor = '#d4edda'
+    
+    inc1 [label = 'Studies included in review\\n(n = 1,174)', fillcolor = '#28a745', fontcolor = white]
+    inc2 [label = 'Highly cited ≥50 (n = 721)\\nRecent 2023-25 with ≥5 cites (n = 453)', 
+          fillcolor = '#d4edda']
+  }
+  
+  # Edges
+  id1 -> id2 [style = invis]
+  id2 -> sc1 [minlen = 2]
+  sc1 -> sc2 [style = dashed]
+  sc1 -> sc3
+  sc3 -> el1 [minlen = 2]
+  el1 -> el2 [style = dashed]
+  el1 -> el3
+  el3 -> inc1 [minlen = 2]
+  inc1 -> inc2 [style = invis]
+}
+")
+
+# Export to SVG then PNG
+prisma |> 
+  export_svg() |> 
+  charToRaw() |> 
+  rsvg_png("prisma_diagram.png", width = 800)
+
+# Display the image
+knitr::include_graphics("prisma_diagram.png")
+```
+
+```{r}
+# Find highly cited, open access papers
+candidates <- final_set |> 
+  filter(is_oa == TRUE) |> 
+  arrange(desc(cited_by_count)) |> 
+  select(display_name, publication_year, cited_by_count, search_term, pdf_url, doi) |> 
+  head(20)
+
+print(candidates, n = 20)
+
+# Get details for these two papers
+selected <- final_set |> 
+  filter(str_detect(display_name, "Atlantis experience|Best practice in Ecopath")) |> 
+  select(display_name, doi, pdf_url, oa_url)
+
+print(selected)
+```
