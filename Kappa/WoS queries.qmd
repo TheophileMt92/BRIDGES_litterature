@@ -29,36 +29,7 @@ library(tidyverse)
 
 Single Web of Science query performed (13/02/2026):
 
-TS=(
-  ("ecosystem model*" OR "food web model*" OR "bioeconomic model*"
-   OR "bio-economic model*" OR "end-to-end model*" OR "trophic model*"
-   OR "socio-ecological model*" OR "social-ecological model*"
-   OR "socioecological model*" OR "species distribution model*"
-   OR "spatially explicit model*" OR "biogeochemical model*"
-   OR "earth system model*" OR "fisheries model*"
-   OR "qualitative model*" OR "habitat model*"
-   OR "connectivity model*")
-  AND
-  ("protected area*" OR "no-take zone*"
-   OR "conservation planning" OR "spatial planning"
-   OR "area-based management"
-   OR "zonation" OR "zoning" OR "prioriti?ation"
-   OR "reserve design" OR "reserve network" OR "site selection"
-   OR "fisheries management" OR "ecosystem-based management"
-   OR "decision support" OR "decision making"
-   OR "management strategy evaluation"
-   OR "socio-ecological" OR "social-ecological" OR "socioecological"
-   OR "ecosystem approach" OR "adaptive management"
-   OR "trade-off*" OR "optimi?ation"
-   OR "cost-effectiveness" OR "cost-benefit"
-   OR "impact assessment" OR "ecosystem service*"
-   OR "risk assessment")
-  AND
-  ("marine" OR "ocean*" OR "coastal" OR "fish*"
-   OR "reef*" OR "pelagic" OR "sea"
-   OR "seagrass" OR "mangrove" OR "lagoon*"
-   OR "estuar*" OR "benthic" OR "shore*" OR "intertidal")
-)
+TS=( ("ecosystem model*" OR "food web model*" OR "bioeconomic model*" OR "bio-economic model*" OR "end-to-end model*" OR "trophic model*" OR "socio-ecological model*" OR "social-ecological model*" OR "socioecological model*" OR "species distribution model*" OR "spatially explicit model*" OR "biogeochemical model*" OR "earth system model*" OR "fisheries model*" OR "qualitative model*" OR "habitat model*" OR "connectivity model*") AND ("protected area*" OR "no-take zone*" OR "conservation planning" OR "spatial planning" OR "area-based management" OR "zonation" OR "zoning" OR "prioriti?ation" OR "reserve design" OR "reserve network" OR "site selection" OR "fisheries management" OR "ecosystem-based management" OR "decision support" OR "decision making" OR "management strategy evaluation" OR "socio-ecological" OR "social-ecological" OR "socioecological" OR "ecosystem approach" OR "adaptive management" OR "trade-off*" OR "optimi?ation" OR "cost-effectiveness" OR "cost-benefit" OR "impact assessment" OR "ecosystem service*" OR "risk assessment") AND ("marine" OR "ocean*" OR "coastal" OR "fish*" OR "reef*" OR "pelagic" OR "sea" OR "seagrass" OR "mangrove" OR "lagoon*" OR "estuar*" OR "benthic" OR "shore\*" OR "intertidal") )
 
 Results: 3,715 articles.
 
@@ -108,6 +79,23 @@ sample_33 |>
     year = PY, journal = SO, doi = DI, keywords = DE
   ) |>
   write_csv(here::here("WoS_query_130226", "BRIDGES_sample_33.csv"))
+
+# Charger les 33 déjà screenés
+sample_33 <- read_csv(here("WoS_query_130226", "BRIDGES_sample_33.csv"))
+
+# Exclure les 33 du sample_100 via le DOI
+sample_67 <- sample_100 |>
+  filter(!DI %in% sample_33$doi)
+
+cat("Remaining:", nrow(sample_67), "\n")  # doit donner 67
+
+# Export
+sample_67 |>
+  transmute(
+    title = TI, abstract = AB, authors = AU,
+    year = PY, journal = SO, doi = DI, keywords = DE
+  ) |>
+  write_csv(here("WoS_query_130226", "BRIDGES_sample_67.csv"))
 ```
 
 ## Filter queries (Year, Citations)
@@ -154,7 +142,7 @@ final_wos |>
 #  head(15)
 ```
 
-# Geographic biais analysis 
+# Geographic biais analysis
 
 ```{r}
 # Extraire les pays avec metaTagExtraction
@@ -274,12 +262,12 @@ L'analyse de la distribution géographique des auteurs révèle que le filtre de
 
 Pour corriger ce biais structurel, nous appliquons des seuils de citations différenciés selon la composition géographique des auteurs :
 
-| Catégorie | Critères d'inclusion |
-|-----------|---------------------|
-| **Nord uniquement** | ≥30 citations, ou ≥5 si publié 2023-2025 |
+| Catégorie                        | Critères d'inclusion                     |
+|-------------------------|-----------------------------------------------|
+| **Nord uniquement**              | ≥30 citations, ou ≥5 si publié 2023-2025 |
 | **Minorité Sud (collaboration)** | ≥30 citations, ou ≥5 si publié 2023-2025 |
-| **Majorité Sud** | ≥10 citations, ou ≥2 si publié 2023-2025 |
-| **Sud uniquement** | ≥10 citations, ou ≥2 si publié 2023-2025 |
+| **Majorité Sud**                 | ≥10 citations, ou ≥2 si publié 2023-2025 |
+| **Sud uniquement**               | ≥10 citations, ou ≥2 si publié 2023-2025 |
 
 Cette approche reconnaît que les articles issus du Sud global accumulent structurellement moins de citations en raison de barrières linguistiques, d'effets de réseau, et de la hiérarchie des revues scientifiques.
 
@@ -352,7 +340,7 @@ final_wos_adjusted |>
   head(20)
 ```
 
-## Export to ASReview 
+## Export to ASReview
 
 ```{r}
 # Vérifier la présence des abstracts dans le corpus final

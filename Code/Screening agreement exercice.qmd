@@ -20,6 +20,8 @@ execute:
 
 # Kappa index
 
+# First 33 articles 
+
 ```{r}
 library(irr)
 library(tidyverse)
@@ -121,24 +123,15 @@ Voici ce que les résultats indiquent :
 
 Fleiss' Kappa : -0.065 (p = 0.46)
 
-C'est essentiellement zéro (légèrement négatif), ce qui signifie que l'accord global entre les 4 screeners n'est pas meilleur que le hasard. Mais c'est trompeur - le problème vient clairement d'un seul screener.
-Les Kappas de Cohen pairwise :
+C'est essentiellement zéro (légèrement négatif), ce qui signifie que l'accord global entre les 4 screeners n'est pas meilleur que le hasard. Mais c'est trompeur - le problème vient clairement d'un seul screener. Les Kappas de Cohen pairwise :
 
-TM-AC : 0.61 (85% d'accord) - substantiel
-TM-SD : 0.69 (85% d'accord) - substantiel
-AC-SD : 0.36 (70% d'accord) - modéré
-TM-SM : 0.05 (58% d'accord) - quasi nul
-AC-SM : -0.08 (55% d'accord) - quasi nul (légèrement négatif)
-SD-SM : 0.19 (61% d'accord) - faible
+TM-AC : 0.61 (85% d'accord) - substantiel TM-SD : 0.69 (85% d'accord) - substantiel AC-SD : 0.36 (70% d'accord) - modéré TM-SM : 0.05 (58% d'accord) - quasi nul AC-SM : -0.08 (55% d'accord) - quasi nul (légèrement négatif) SD-SM : 0.19 (61% d'accord) - faible
 
 SM reste l'outlier. SM s'accorde mal avec tout le monde, surtout avec TM et AC. Ce qui est notable, c'est que SM inclut un nombre comparable d'articles aux autres (21/33, soit 63.6%), mais pas les mêmes articles. Ce n'est donc pas un problème de seuil trop restrictif ou trop permissif, mais bien une interprétation différente des critères.
 
 Taux d'inclusion par screener :
 
-AC : 78.8% (26/33)
-TM : 69.7% (23/33)
-SM : 63.6% (21/33)
-SD : 54.5% (18/33)
+AC : 78.8% (26/33) TM : 69.7% (23/33) SM : 63.6% (21/33) SD : 54.5% (18/33)
 
 TM vs majorité : 84.8%
 
@@ -149,5 +142,11 @@ Ce que ça implique en pratique :
 TM, AC et SD forment un groupe raisonnablement cohérent (kappa 0.36-0.69). SM, malgré un taux d'inclusion similaire, inclut et exclut des articles différents des trois autres, ce qui suggère une divergence dans la compréhension des critères plutôt qu'un seuil trop strict ou trop laxiste.
 
 Il serait utile de revoir les critères avec SM en s'appuyant sur des cas concrets de désaccord, notamment les articles que TM, AC et SD incluent unanimement mais que SM exclut, afin d'identifier précisément où se situe le malentendu avant de lancer le screening complet.
+
+# Articles 33-66
+
+```{r}
+
+```
 
 
