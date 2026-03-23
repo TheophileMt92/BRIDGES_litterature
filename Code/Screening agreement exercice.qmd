@@ -146,7 +146,139 @@ Il serait utile de revoir les critères avec SM en s'appuyant sur des cas concre
 # Articles 33-66
 
 ```{r}
+# Second screening exercise — 67 articles, 4 screeners
+library(irr)
+library(tidyverse)
 
+# 1. Import
+df <- readxl::read_excel(
+  here::here("BRIDGES_sample_67_consolidated_4 authors.xlsx"),
+  sheet = 1
+)
+
+# Vérifier les valeurs uniques par screener
+sort(unique(df$decision_TM))
+sort(unique(df$decision_AG))
+sort(unique(df$decision_SD))
+sort(unique(df$decision_SM))
+
+# 2. Binariser (uniquement les lignes avec au moins une décision)
+binarize <- function(x) {
+  if_else(tolower(x) %in% c("include", "review/synthesis"), "Include", "Exclude")
+}
+
+ratings <- df |>
+  filter(!is.na(decision_TM) | !is.na(decision_AG) | 
+         !is.na(decision_SD) | !is.na(decision_SM)) |>
+  transmute(
+    doi,
+    TM = binarize(decision_TM),
+    AG = binarize(decision_AG),
+    SD = binarize(decision_SD),
+    SM = binarize(decision_SM)
+  ) |>
+  filter(!is.na(TM) & !is.na(AG) & !is.na(SD) & !is.na(SM))
+
+cat("Articles avec 4 décisions:", nrow(ratings), "\n")
+
+# 3. Fleiss' Kappa (accord global)
+ratings_matrix <- ratings |>
+  select(-doi) |>
+  apply(1, function(row) {
+    c(Include = sum(row == "Include"), Exclude = sum(row == "Exclude"))
+  }) |>
+  t()
+
+fleiss <- kappam.fleiss(ratings_matrix)
+cat("Fleiss' Kappa (4 screeners):", round(fleiss$value, 3), "\n")
+cat("p-value:", fleiss$p.value, "\n")
+
+# 4. Cohen's Kappa pairwise
+screeners <- c("TM", "AG", "SD", "SM")
+pairwise <- expand.grid(s1 = screeners, s2 = screeners, stringsAsFactors = FALSE) |>
+  filter(s1 < s2) |>
+  rowwise() |>
+  mutate(
+    kappa     = kappa2(cbind(ratings[[s1]], ratings[[s2]]))$value,
+    agreement = mean(ratings[[s1]] == ratings[[s2]]) * 100
+  )
+print(pairwise)
+
+# 5. "Indice Théophile" : accord TM vs majorité des 3 autres
+ratings <- ratings |>
+  mutate(
+    majority = if_else(
+      (AG == "Include") + (SD == "Include") + (SM == "Include") >= 2,
+      "Include", "Exclude"
+    ),
+    tm_agrees = TM == majority
+  )
+
+cat("\nAccord TM vs majorité:", round(mean(ratings$tm_agrees) * 100, 1), "%\n")
+
+# 6. Taux d'inclusion par screener
+ratings |>
+  select(TM, AG, SD, SM) |>
+  pivot_longer(everything(), names_to = "screener", values_to = "decision") |>
+  count(screener, decision) |>
+  group_by(screener) |>
+  mutate(pct = round(n / sum(n) * 100, 1)) |>
+  print(n = Inf)
+
+# 7. Détail des désaccords TM vs majorité
+disagreements <- ratings |>
+  filter(!tm_agrees) |>
+  left_join(df |> select(doi, title, decision_TM, notes_TM), by = "doi")
+print(disagreements)
+
+# 8. Articles où AG, SD et SM sont unanimes (sans TM)
+ratings |>
+  filter(AG == SD & SD == SM) |>
+  left_join(df |> select(doi, title), by = "doi") |>
+  select(doi, title, TM, AG, SD, SM)
 ```
 
+# Articles 66-100
 
+```{r}
+df_67 <- read_excel(
+  here::here("Screening exercice", "Consensus scoring",
+             "BRIDGES_sample_67_consolidated_4 authors_concensus.xlsx"),
+  sheet = 1
+)
+
+# Extraire les 35 du bas sans aucune décision AG/SD/SM
+sample_35 <- df_67 |>
+  filter(is.na(decision_AG) & is.na(decision_SD) & is.na(decision_SM)) |>
+  mutate(
+    decision = NA_character_,
+    notes    = NA_character_
+  ) |>
+  select(title, authors, year, journal, doi, keywords, abstract, decision, notes)
+
+cat("Articles à envoyer:", nrow(sample_35), "\n")
+
+#
+sample_35 <- df_67 |>
+  filter(is.na(decision_AG) & is.na(decision_SD) & is.na(decision_SM)) |>
+  mutate(
+    title    = tools::toTitleCase(tolower(title)),
+    authors  = tools::toTitleCase(tolower(authors)),
+    journal  = tools::toTitleCase(tolower(journal)),
+    keywords = tools::toTitleCase(tolower(keywords)),
+    abstract = tolower(abstract),
+    decision = NA_character_,
+    notes    = NA_character_
+  ) |>
+  select(title, authors, year, journal, doi, keywords, abstract, decision, notes)
+
+# Export
+wb <- openxlsx::createWorkbook()
+openxlsx::addWorksheet(wb, "Sample 35")
+openxlsx::writeData(wb, "Sample 35", sample_35)
+openxlsx::saveWorkbook(
+  wb,
+  here::here("Screening exercice", "BRIDGES_sample_35.xlsx"),
+  overwrite = TRUE
+)
+```
