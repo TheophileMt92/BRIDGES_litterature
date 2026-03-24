@@ -1,0 +1,205 @@
+---
+title: "BRIDGES - Screening analyses"
+author: "Théophile L. Mouton"
+format:
+  html:
+    self-contained: true
+editor: visual
+execute:
+  message: false
+  warning: false
+---
+
+## Taux d'inclusion et estimation du volume full-text
+
+À partir des décisions consensus établies sur les 65 premiers articles screenés
+(batch 1 : 33 articles, batch 2 : 32 articles), nous estimons le taux d'inclusion
+attendu sur l'ensemble du corpus WoS (3 686 articles). Cette estimation repose
+sur un tirage aléatoire représentatif (`set.seed(42)`) et permet d'anticiper
+la charge de travail pour la phase de lecture full-text. L'incertitude autour
+de l'estimation centrale est quantifiée par un intervalle de confiance à 95%
+sur la proportion observée.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Afficher le code"
+
+library(here)
+library(tidyverse)
+library(readxl)
+library(irr)
+
+# Import
+batch1 <- read_excel(
+  here("Screening exercice", "Consensus scoring",
+       "BRIDGES_sample_33_consolidated_4 authors_consensus.xlsx"),
+  sheet = 1
+)
+batch2 <- read_excel(
+  here("Screening exercice", "Consensus scoring",
+       "BRIDGES_sample_67_consolidated_4 authors_concensus.xlsx"),
+  sheet = 1
+)
+
+stopifnot("Consensus" %in% names(batch1))
+stopifnot("Consensus" %in% names(batch2))
+
+binarize <- function(x) {
+  if_else(tolower(x) %in% c("include", "review/synthesis"), "Include", "Exclude")
+}
+
+# Combiner les décisions consensus
+all_consensus <- bind_rows(
+  batch1 |> select(doi, decision = Consensus),
+  batch2 |> select(doi, decision = Consensus)
+) |>
+  filter(!is.na(decision)) |>
+  mutate(decision_bin = binarize(decision))
+
+n_screened <- nrow(all_consensus)
+n_include  <- sum(all_consensus$decision_bin == "Include")
+n_exclude  <- n_screened - n_include
+rate       <- n_include / n_screened
+n_wos      <- 3686
+
+# IC 95%
+se <- sqrt(rate * (1 - rate) / n_screened)
+ic_bas  <- rate - 1.96 * se
+ic_haut <- rate + 1.96 * se
+
+# Table de synthèse
+tibble(
+  Métrique = c(
+    "Articles screenés (consensus)",
+    "Articles inclus",
+    "Articles exclus",
+    "Taux d'inclusion",
+    "Corpus WoS total",
+    "Estimation centrale (full-corpus)",
+    "IC 95% bas",
+    "IC 95% haut",
+    "Full-text estimé (bas, 70%)",
+    "Full-text estimé (haut, 80%)"
+  ),
+  Valeur = c(
+    n_screened,
+    n_include,
+    n_exclude,
+    paste0(round(rate * 100, 1), "%"),
+    n_wos,
+    round(n_wos * rate),
+    round(n_wos * ic_bas),
+    round(n_wos * ic_haut),
+    round(n_wos * rate * 0.70),
+    round(n_wos * rate * 0.80)
+  )
+) |>
+  knitr::kable(
+    caption = "Estimation du volume d'articles pour le screening full-text",
+    align   = c("l", "r")
+  )
+```
+
+
+## Évolution de l'accord inter-évaluateurs (Kappa)
+
+L'accord inter-évaluateurs est suivi à chaque batch de screening collectif. 
+Une progression du Kappa au fil des batches indiquerait une convergence de 
+l'équipe vers une interprétation commune des critères d'inclusion, suite aux 
+discussions et clarifications successives (notamment la distinction modèle 
+mécanistique vs statistique introduite lors de la réunion du 23 mars 2026).
+
+```{r}
+#| code-fold: true
+#| code-summary: "Afficher le code"
+
+binarize <- function(x) {
+  if_else(
+    tolower(trimws(x)) %in% c(
+      "include",
+      "review/synthesis",
+      "include or not a model",
+      "je ne sais pas",        # doute → inclure par défaut
+      "je ne suis pas sur"     # doute → inclure par défaut
+    ),
+    "Include", "Exclude"
+  )
+}
+
+# Vérifier la distribution Include/Exclude après binarisation
+#cat("=== Batch 1 — distribution après binarisation ===\n")
+#batch1 |>
+#  select(decision_SM, decision_SD, decision_AC, decision_TM) |>
+#  mutate(across(everything(), binarize)) |>
+#  summarise(across(everything(), ~ sum(. == "Include", na.rm = TRUE))) |>
+#  print()
+
+compute_kappa <- function(df, screeners) {
+  ratings <- df |>
+    select(doi, all_of(screeners)) |>
+    filter(if_all(all_of(screeners), ~ !is.na(.))) |>
+    mutate(across(all_of(screeners), binarize))
+  
+  n <- nrow(ratings)
+  
+  # Fleiss' Kappa
+  mat <- ratings |>
+    select(-doi) |>
+    apply(1, function(row) {
+      c(Include = sum(row == "Include"), Exclude = sum(row == "Exclude"))
+    }) |>
+    t()
+  
+  fleiss_k <- kappam.fleiss(mat)$value
+  
+  # Cohen's Kappa pairwise (moyenne)
+  pairs <- expand.grid(s1 = screeners, s2 = screeners, 
+                       stringsAsFactors = FALSE) |>
+    filter(s1 < s2) |>
+    rowwise() |>
+    mutate(k = kappa2(cbind(ratings[[s1]], ratings[[s2]]))$value)
+  
+  mean_cohen <- mean(pairs$k)
+  
+  tibble(
+    n_articles   = n,
+    fleiss_kappa = round(fleiss_k, 3),
+    mean_cohen_k = round(mean_cohen, 3)
+  )
+}
+
+# Batch 1 : screeners SM, SD, AC, TM
+kappa_b1 <- compute_kappa(
+  batch1, 
+  c("decision_SM", "decision_SD", "decision_AC", "decision_TM")
+) |> mutate(Batch = "Batch 1 (33 articles)", .before = 1)
+
+# Batch 2 : screeners AG, SD, SM, TM
+kappa_b2 <- compute_kappa(
+  batch2, 
+  c("decision_AG", "decision_SD", "decision_SM", "decision_TM")
+) |> mutate(Batch = "Batch 2 (32 articles)", .before = 1)
+
+# Batch 3 : à compléter une fois les 35 articles consolidés
+# kappa_b3 <- compute_kappa(
+#   batch3,
+#   c("decision_AG", "decision_SD", "decision_SM", "decision_TM")
+# ) |> mutate(Batch = "Batch 3 (35 articles)", .before = 1)
+
+# Table de synthèse
+bind_rows(kappa_b1, kappa_b2) |>
+  rename(
+    `Articles évalués`  = n_articles,
+    `Fleiss' Kappa`     = fleiss_kappa,
+    `Cohen moyen (pairs)` = mean_cohen_k
+  ) |>
+  knitr::kable(
+    caption = "Évolution de l'accord inter-évaluateurs par batch de screening",
+    align   = c("l", "r", "r", "r")
+  )
+
+# Note sous la table
+cat("Note : Le Fleiss' Kappa négatif s'explique par le déséquilibre de la 
+distribution (>70% d'inclusions), qui gonfle l'accord attendu par hasard. 
+Dans ce contexte, le Cohen moyen par paires est plus informatif.")
+```
