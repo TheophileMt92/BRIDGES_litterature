@@ -12,12 +12,15 @@ execute:
 
 ## Taux d'inclusion et estimation du volume full-text
 
-À partir des décisions consensus établies sur les 65 premiers articles screenés
-(batch 1 : 33 articles, batch 2 : 32 articles), nous estimons le taux d'inclusion
-attendu sur l'ensemble du corpus WoS (3 686 articles). Cette estimation repose
-sur un tirage aléatoire représentatif (`set.seed(42)`) et permet d'anticiper
-la charge de travail pour la phase de lecture full-text. L'incertitude autour
-de l'estimation centrale est quantifiée par un intervalle de confiance à 95%
+À partir des décisions consensus établies sur les 100 articles screenés
+(batch 1 : 33 articles, batch 2 : 32 articles, batch 3 : 35 articles), nous
+estimons le taux d'inclusion attendu sur l'ensemble du corpus effectif de
+3 013 articles importés dans ASReview. Sur les 3 686 articles issus de la
+requête WoS, 673 ont été exclus automatiquement par ASReview en raison de
+métadonnées manquantes, notamment les abstracts. Cette estimation repose sur
+un tirage aléatoire représentatif (`set.seed(42)`) et permet d'anticiper la
+charge de travail pour la phase de lecture full-text. L'incertitude autour de
+l'estimation centrale est quantifiée par un intervalle de confiance à 95%
 sur la proportion observée.
 ```{r}
 #| code-fold: true
@@ -39,21 +42,28 @@ batch2 <- read_excel(
        "BRIDGES_sample_67_consolidated_4 authors_concensus.xlsx"),
   sheet = 1
 )
+batch3 <- read_excel(
+  here("Screening exercice", "Consensus scoring",
+       "BRIDGES_sample_100_consolidated_4 authors_consensus.xlsx"),
+  sheet = 1
+)
 
 stopifnot("Consensus" %in% names(batch1))
 stopifnot("Consensus" %in% names(batch2))
+stopifnot("Consensus" %in% names(batch3))
 
 binarize <- function(x) {
   if_else(tolower(trimws(x)) %in% c(
-    "include", "review/synthesis", "include or not a model",
-    "je ne sais pas", "je ne suis pas sur"
+    "include", "review/synthesis", "review/synthésis",
+    "include or not a model", "je ne sais pas", "je ne suis pas sur"
   ), "Include", "Exclude")
 }
 
-# Combiner les décisions consensus
+# Combiner les décisions consensus des 3 batches
 all_consensus <- bind_rows(
   batch1 |> select(doi, decision = Consensus),
-  batch2 |> select(doi, decision = Consensus)
+  batch2 |> select(doi, decision = Consensus),
+  batch3 |> select(doi, decision = Consensus)
 ) |>
   filter(!is.na(decision)) |>
   mutate(decision_bin = binarize(decision))
@@ -62,7 +72,7 @@ n_screened <- nrow(all_consensus)
 n_include  <- sum(all_consensus$decision_bin == "Include")
 n_exclude  <- n_screened - n_include
 rate       <- n_include / n_screened
-n_wos      <- 3686
+n_wos      <- 3013  # corpus effectif après import dans ASReview
 
 # IC 95%
 se      <- sqrt(rate * (1 - rate) / n_screened)
@@ -72,13 +82,15 @@ ic_haut <- rate + 1.96 * se
 tibble(
   Métrique = c(
     "Articles screenés (consensus)", "Articles inclus", "Articles exclus",
-    "Taux d'inclusion", "Corpus WoS total",
+    "Taux d'inclusion", "Corpus WoS total (requête)",
+    "Corpus effectif (ASReview)", "Exclus par ASReview (abstracts manquants)",
     "Estimation centrale (full-corpus)", "IC 95% bas", "IC 95% haut",
     "Full-text estimé (bas, 70%)", "Full-text estimé (haut, 80%)"
   ),
   Valeur = c(
     n_screened, n_include, n_exclude,
-    paste0(round(rate * 100, 1), "%"), n_wos,
+    paste0(round(rate * 100, 1), "%"),
+    3686, n_wos, 3686 - n_wos,
     round(n_wos * rate), round(n_wos * ic_bas), round(n_wos * ic_haut),
     round(n_wos * rate * 0.70), round(n_wos * rate * 0.80)
   )
@@ -125,7 +137,7 @@ compute_kappa <- function(df, screeners) {
 
   mean_cohen <- mean(pairs$k)
 
-  tibble(n_articles = n,
+  tibble(n_articles   = n,
          fleiss_kappa = round(fleiss_k, 3),
          mean_cohen_k = round(mean_cohen, 3))
 }
@@ -138,11 +150,11 @@ kappa_b2 <- compute_kappa(
   batch2, c("decision_AG", "decision_SD", "decision_SM", "Decision_TM")
 ) |> mutate(Batch = "Batch 2 (32 articles)", .before = 1)
 
-# kappa_b3 <- compute_kappa(
-#   batch3, c("decision_AG", "decision_SD", "decision_SM", "decision_TM")
-# ) |> mutate(Batch = "Batch 3 (35 articles)", .before = 1)
+kappa_b3 <- compute_kappa(
+  batch3, c("decision_AC", "decision_SD", "decision_SM", "decision_TM")
+) |> mutate(Batch = "Batch 3 (35 articles)", .before = 1)
 
-bind_rows(kappa_b1, kappa_b2) |>
+bind_rows(kappa_b1, kappa_b2, kappa_b3) |>
   rename(
     `Articles évalués`    = n_articles,
     `Fleiss' Kappa`       = fleiss_kappa,
@@ -153,8 +165,8 @@ bind_rows(kappa_b1, kappa_b2) |>
     align   = c("l", "r", "r", "r")
   )
 
-cat("Note : Le Fleiss' Kappa négatif s'explique par le déséquilibre de la 
-distribution (>70% d'inclusions), qui gonfle l'accord attendu par hasard. 
+cat("Note : Le Fleiss' Kappa négatif s'explique par le déséquilibre de la
+distribution (>70% d'inclusions), qui gonfle l'accord attendu par hasard.
 Dans ce contexte, le Cohen moyen par paires est plus informatif.")
 ```
 
@@ -165,6 +177,9 @@ La sensibilité mesure le pourcentage d'articles pertinents correctement inclus,
 la spécificité le pourcentage d'articles non pertinents correctement exclus.
 L'objectif prioritaire est d'obtenir une haute sensibilité, afin de minimiser
 le risque de manquer des articles pertinents lors du screening complet.
+Le Batch 3, effectué après la clarification des critères du 23 mars 2026,
+montre une sensibilité de 100% pour le pilote et pour Claude — aucun article
+pertinent manqué.
 ```{r}
 #| code-fold: true
 #| code-summary: "Afficher le code"
@@ -178,36 +193,38 @@ compute_sens_spec <- function(df, screener_col, gold_col = "Consensus") {
       gold_bin     = binarize(gold)
     )
 
-  n          <- nrow(df_clean)
-  tp         <- sum(df_clean$screener_bin == "Include" & df_clean$gold_bin == "Include")
-  tn         <- sum(df_clean$screener_bin == "Exclude" & df_clean$gold_bin == "Exclude")
-  fp         <- sum(df_clean$screener_bin == "Include" & df_clean$gold_bin == "Exclude")
-  fn         <- sum(df_clean$screener_bin == "Exclude" & df_clean$gold_bin == "Include")
+  tp          <- sum(df_clean$screener_bin == "Include" & df_clean$gold_bin == "Include")
+  tn          <- sum(df_clean$screener_bin == "Exclude" & df_clean$gold_bin == "Exclude")
+  fp          <- sum(df_clean$screener_bin == "Include" & df_clean$gold_bin == "Exclude")
+  fn          <- sum(df_clean$screener_bin == "Exclude" & df_clean$gold_bin == "Include")
   sensitivity <- round(tp / (tp + fn) * 100, 1)
   specificity <- round(tn / (tn + fp) * 100, 1)
 
   tibble(
-    n_articles  = n,
+    n_articles  = nrow(df_clean),
     TP = tp, TN = tn, FP = fp, FN = fn,
-    Sensibilité  = paste0(sensitivity, "%"),
-    Spécificité  = paste0(specificity, "%")
+    Sensibilité = paste0(sensitivity, "%"),
+    Spécificité = paste0(specificity, "%")
   )
 }
 
-# Batch 1 — Pilote (TM) et Claude
-sens_b1_TM     <- compute_sens_spec(batch1, "decision_TM")     |> mutate(Batch = "Batch 1", Screener = "Pilote (TM)", .before = 1)
-sens_b1_Claude <- compute_sens_spec(batch1, "decision_Claude")  |> mutate(Batch = "Batch 1", Screener = "Claude",      .before = 1)
+# Batch 1
+sens_b1_TM     <- compute_sens_spec(batch1, "decision_TM")    |> mutate(Batch = "Batch 1", Screener = "Pilote (TM)", .before = 1)
+sens_b1_Claude <- compute_sens_spec(batch1, "decision_Claude") |> mutate(Batch = "Batch 1", Screener = "Claude",      .before = 1)
 
-# Batch 2 — Pilote (TM) et Claude
-sens_b2_TM <- compute_sens_spec(batch2, "Decision_TM") |> 
-  mutate(Batch = "Batch 2", Screener = "Pilote (TM)", .before = 1)
-sens_b2_Claude <- compute_sens_spec(batch2, "decision_Claude")  |> mutate(Batch = "Batch 2", Screener = "Claude",      .before = 1)
+# Batch 2
+sens_b2_TM     <- compute_sens_spec(batch2, "Decision_TM")    |> mutate(Batch = "Batch 2", Screener = "Pilote (TM)", .before = 1)
+sens_b2_Claude <- compute_sens_spec(batch2, "decision_Claude") |> mutate(Batch = "Batch 2", Screener = "Claude",      .before = 1)
 
-# Batch 3 : à décommenter une fois disponible
-# sens_b3_TM     <- compute_sens_spec(batch3, "decision_TM")    |> mutate(Batch = "Batch 3", Screener = "Pilote (TM)", .before = 1)
-# sens_b3_Claude <- compute_sens_spec(batch3, "decision_Claude") |> mutate(Batch = "Batch 3", Screener = "Claude",      .before = 1)
+# Batch 3
+sens_b3_TM     <- compute_sens_spec(batch3, "decision_TM")    |> mutate(Batch = "Batch 3", Screener = "Pilote (TM)", .before = 1)
+sens_b3_Claude <- compute_sens_spec(batch3, "decision_Claude") |> mutate(Batch = "Batch 3", Screener = "Claude",      .before = 1)
 
-bind_rows(sens_b1_TM, sens_b1_Claude, sens_b2_TM, sens_b2_Claude) |>
+bind_rows(
+  sens_b1_TM, sens_b1_Claude,
+  sens_b2_TM, sens_b2_Claude,
+  sens_b3_TM, sens_b3_Claude
+) |>
   select(Batch, Screener, n_articles, Sensibilité, Spécificité) |>
   rename(`Articles évalués` = n_articles) |>
   knitr::kable(
