@@ -3135,59 +3135,49 @@ vertical-align: -.125em;
 <span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="st">&quot;Consensus&quot;</span> <span class="sc">%in%</span> <span class="fu">names</span>(batch2))</span>
 <span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>binarize <span class="ot">&lt;-</span> <span class="cf">function</span>(x) {</span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">if_else</span>(<span class="fu">tolower</span>(x) <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;include&quot;</span>, <span class="st">&quot;review/synthesis&quot;</span>), <span class="st">&quot;Include&quot;</span>, <span class="st">&quot;Exclude&quot;</span>)</span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Combiner les décisions consensus</span></span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>all_consensus <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>  batch1 <span class="sc">|&gt;</span> <span class="fu">select</span>(doi, <span class="at">decision =</span> Consensus),</span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>  batch2 <span class="sc">|&gt;</span> <span class="fu">select</span>(doi, <span class="at">decision =</span> Consensus)</span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(decision)) <span class="sc">|&gt;</span></span>
-<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">decision_bin =</span> <span class="fu">binarize</span>(decision))</span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>n_screened <span class="ot">&lt;-</span> <span class="fu">nrow</span>(all_consensus)</span>
-<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>n_include  <span class="ot">&lt;-</span> <span class="fu">sum</span>(all_consensus<span class="sc">$</span>decision_bin <span class="sc">==</span> <span class="st">&quot;Include&quot;</span>)</span>
-<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>n_exclude  <span class="ot">&lt;-</span> n_screened <span class="sc">-</span> n_include</span>
-<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>rate       <span class="ot">&lt;-</span> n_include <span class="sc">/</span> n_screened</span>
-<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>n_wos      <span class="ot">&lt;-</span> <span class="dv">3686</span></span>
-<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a><span class="co"># IC 95%</span></span>
-<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>se <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(rate <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> rate) <span class="sc">/</span> n_screened)</span>
-<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>ic_bas  <span class="ot">&lt;-</span> rate <span class="sc">-</span> <span class="fl">1.96</span> <span class="sc">*</span> se</span>
-<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>ic_haut <span class="ot">&lt;-</span> rate <span class="sc">+</span> <span class="fl">1.96</span> <span class="sc">*</span> se</span>
-<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a><span class="co"># Table de synthèse</span></span>
-<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(</span>
-<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>  Métrique <span class="ot">=</span> <span class="fu">c</span>(</span>
-<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Articles screenés (consensus)&quot;</span>,</span>
-<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Articles inclus&quot;</span>,</span>
-<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Articles exclus&quot;</span>,</span>
-<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Taux d&#39;inclusion&quot;</span>,</span>
-<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Corpus WoS total&quot;</span>,</span>
-<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Estimation centrale (full-corpus)&quot;</span>,</span>
-<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;IC 95% bas&quot;</span>,</span>
-<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;IC 95% haut&quot;</span>,</span>
-<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Full-text estimé (bas, 70%)&quot;</span>,</span>
-<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Full-text estimé (haut, 80%)&quot;</span></span>
-<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a>  <span class="at">Valeur =</span> <span class="fu">c</span>(</span>
-<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a>    n_screened,</span>
-<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a>    n_include,</span>
-<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a>    n_exclude,</span>
-<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a>    <span class="fu">paste0</span>(<span class="fu">round</span>(rate <span class="sc">*</span> <span class="dv">100</span>, <span class="dv">1</span>), <span class="st">&quot;%&quot;</span>),</span>
-<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a>    n_wos,</span>
-<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a>    <span class="fu">round</span>(n_wos <span class="sc">*</span> rate),</span>
-<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a>    <span class="fu">round</span>(n_wos <span class="sc">*</span> ic_bas),</span>
-<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a>    <span class="fu">round</span>(n_wos <span class="sc">*</span> ic_haut),</span>
-<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a>    <span class="fu">round</span>(n_wos <span class="sc">*</span> rate <span class="sc">*</span> <span class="fl">0.70</span>),</span>
-<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a>    <span class="fu">round</span>(n_wos <span class="sc">*</span> rate <span class="sc">*</span> <span class="fl">0.80</span>)</span>
-<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
-<span id="cb1-71"><a href="#cb1-71" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(</span>
-<span id="cb1-72"><a href="#cb1-72" aria-hidden="true" tabindex="-1"></a>    <span class="at">caption =</span> <span class="st">&quot;Estimation du volume d&#39;articles pour le screening full-text&quot;</span>,</span>
-<span id="cb1-73"><a href="#cb1-73" aria-hidden="true" tabindex="-1"></a>    <span class="at">align   =</span> <span class="fu">c</span>(<span class="st">&quot;l&quot;</span>, <span class="st">&quot;r&quot;</span>)</span>
-<span id="cb1-74"><a href="#cb1-74" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">if_else</span>(<span class="fu">tolower</span>(<span class="fu">trimws</span>(x)) <span class="sc">%in%</span> <span class="fu">c</span>(</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;include&quot;</span>, <span class="st">&quot;review/synthesis&quot;</span>, <span class="st">&quot;include or not a model&quot;</span>,</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;je ne sais pas&quot;</span>, <span class="st">&quot;je ne suis pas sur&quot;</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>  ), <span class="st">&quot;Include&quot;</span>, <span class="st">&quot;Exclude&quot;</span>)</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a><span class="co"># Combiner les décisions consensus</span></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>all_consensus <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>  batch1 <span class="sc">|&gt;</span> <span class="fu">select</span>(doi, <span class="at">decision =</span> Consensus),</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>  batch2 <span class="sc">|&gt;</span> <span class="fu">select</span>(doi, <span class="at">decision =</span> Consensus)</span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(decision)) <span class="sc">|&gt;</span></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">decision_bin =</span> <span class="fu">binarize</span>(decision))</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>n_screened <span class="ot">&lt;-</span> <span class="fu">nrow</span>(all_consensus)</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>n_include  <span class="ot">&lt;-</span> <span class="fu">sum</span>(all_consensus<span class="sc">$</span>decision_bin <span class="sc">==</span> <span class="st">&quot;Include&quot;</span>)</span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>n_exclude  <span class="ot">&lt;-</span> n_screened <span class="sc">-</span> n_include</span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>rate       <span class="ot">&lt;-</span> n_include <span class="sc">/</span> n_screened</span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>n_wos      <span class="ot">&lt;-</span> <span class="dv">3686</span></span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a><span class="co"># IC 95%</span></span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>se      <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(rate <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> rate) <span class="sc">/</span> n_screened)</span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>ic_bas  <span class="ot">&lt;-</span> rate <span class="sc">-</span> <span class="fl">1.96</span> <span class="sc">*</span> se</span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a>ic_haut <span class="ot">&lt;-</span> rate <span class="sc">+</span> <span class="fl">1.96</span> <span class="sc">*</span> se</span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(</span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>  Métrique <span class="ot">=</span> <span class="fu">c</span>(</span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Articles screenés (consensus)&quot;</span>, <span class="st">&quot;Articles inclus&quot;</span>, <span class="st">&quot;Articles exclus&quot;</span>,</span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Taux d&#39;inclusion&quot;</span>, <span class="st">&quot;Corpus WoS total&quot;</span>,</span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Estimation centrale (full-corpus)&quot;</span>, <span class="st">&quot;IC 95% bas&quot;</span>, <span class="st">&quot;IC 95% haut&quot;</span>,</span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Full-text estimé (bas, 70%)&quot;</span>, <span class="st">&quot;Full-text estimé (haut, 80%)&quot;</span></span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a>  <span class="at">Valeur =</span> <span class="fu">c</span>(</span>
+<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a>    n_screened, n_include, n_exclude,</span>
+<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a>    <span class="fu">paste0</span>(<span class="fu">round</span>(rate <span class="sc">*</span> <span class="dv">100</span>, <span class="dv">1</span>), <span class="st">&quot;%&quot;</span>), n_wos,</span>
+<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>    <span class="fu">round</span>(n_wos <span class="sc">*</span> rate), <span class="fu">round</span>(n_wos <span class="sc">*</span> ic_bas), <span class="fu">round</span>(n_wos <span class="sc">*</span> ic_haut),</span>
+<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a>    <span class="fu">round</span>(n_wos <span class="sc">*</span> rate <span class="sc">*</span> <span class="fl">0.70</span>), <span class="fu">round</span>(n_wos <span class="sc">*</span> rate <span class="sc">*</span> <span class="fl">0.80</span>)</span>
+<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(</span>
+<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a>    <span class="at">caption =</span> <span class="st">&quot;Estimation du volume d&#39;articles pour le screening full-text&quot;</span>,</span>
+<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a>    <span class="at">align   =</span> <span class="fu">c</span>(<span class="st">&quot;l&quot;</span>, <span class="st">&quot;r&quot;</span>)</span>
+<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
@@ -3205,15 +3195,15 @@ vertical-align: -.125em;
 </tr>
 <tr class="even">
 <td style="text-align: left;">Articles inclus</td>
-<td style="text-align: right;">37</td>
+<td style="text-align: right;">39</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">Articles exclus</td>
-<td style="text-align: right;">28</td>
+<td style="text-align: right;">26</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Taux d’inclusion</td>
-<td style="text-align: right;">56.9%</td>
+<td style="text-align: right;">60%</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">Corpus WoS total</td>
@@ -3221,23 +3211,23 @@ vertical-align: -.125em;
 </tr>
 <tr class="even">
 <td style="text-align: left;">Estimation centrale (full-corpus)</td>
-<td style="text-align: right;">2098</td>
+<td style="text-align: right;">2212</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">IC 95% bas</td>
-<td style="text-align: right;">1654</td>
+<td style="text-align: right;">1773</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">IC 95% haut</td>
-<td style="text-align: right;">2542</td>
+<td style="text-align: right;">2651</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">Full-text estimé (bas, 70%)</td>
-<td style="text-align: right;">1469</td>
+<td style="text-align: right;">1548</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Full-text estimé (haut, 80%)</td>
-<td style="text-align: right;">1679</td>
+<td style="text-align: right;">1769</td>
 </tr>
 </tbody>
 </table>
@@ -3250,90 +3240,58 @@ vertical-align: -.125em;
 <div class="cell">
 <details class="code-fold">
 <summary>Afficher le code</summary>
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>binarize <span class="ot">&lt;-</span> <span class="cf">function</span>(x) {</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">if_else</span>(</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tolower</span>(<span class="fu">trimws</span>(x)) <span class="sc">%in%</span> <span class="fu">c</span>(</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>      <span class="st">&quot;include&quot;</span>,</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>      <span class="st">&quot;review/synthesis&quot;</span>,</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>      <span class="st">&quot;include or not a model&quot;</span>,</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>      <span class="st">&quot;je ne sais pas&quot;</span>,        <span class="co"># doute → inclure par défaut</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>      <span class="st">&quot;je ne suis pas sur&quot;</span>     <span class="co"># doute → inclure par défaut</span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    ),</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Include&quot;</span>, <span class="st">&quot;Exclude&quot;</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Vérifier la distribution Include/Exclude après binarisation</span></span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="co">#cat(&quot;=== Batch 1 — distribution après binarisation ===\n&quot;)</span></span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="co">#batch1 |&gt;</span></span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="co">#  select(decision_SM, decision_SD, decision_AC, decision_TM) |&gt;</span></span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="co">#  mutate(across(everything(), binarize)) |&gt;</span></span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="co">#  summarise(across(everything(), ~ sum(. == &quot;Include&quot;, na.rm = TRUE))) |&gt;</span></span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="co">#  print()</span></span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>compute_kappa <span class="ot">&lt;-</span> <span class="cf">function</span>(df, screeners) {</span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>  ratings <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span></span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(doi, <span class="fu">all_of</span>(screeners)) <span class="sc">|&gt;</span></span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(<span class="fu">if_all</span>(<span class="fu">all_of</span>(screeners), <span class="sc">~</span> <span class="sc">!</span><span class="fu">is.na</span>(.))) <span class="sc">|&gt;</span></span>
-<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="fu">across</span>(<span class="fu">all_of</span>(screeners), binarize))</span>
-<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>  n <span class="ot">&lt;-</span> <span class="fu">nrow</span>(ratings)</span>
-<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Fleiss&#39; Kappa</span></span>
-<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>  mat <span class="ot">&lt;-</span> ratings <span class="sc">|&gt;</span></span>
-<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(<span class="sc">-</span>doi) <span class="sc">|&gt;</span></span>
-<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>    <span class="fu">apply</span>(<span class="dv">1</span>, <span class="cf">function</span>(row) {</span>
-<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>      <span class="fu">c</span>(<span class="at">Include =</span> <span class="fu">sum</span>(row <span class="sc">==</span> <span class="st">&quot;Include&quot;</span>), <span class="at">Exclude =</span> <span class="fu">sum</span>(row <span class="sc">==</span> <span class="st">&quot;Exclude&quot;</span>))</span>
-<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>    }) <span class="sc">|&gt;</span></span>
-<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>    <span class="fu">t</span>()</span>
-<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>  fleiss_k <span class="ot">&lt;-</span> <span class="fu">kappam.fleiss</span>(mat)<span class="sc">$</span>value</span>
-<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Cohen&#39;s Kappa pairwise (moyenne)</span></span>
-<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>  pairs <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="at">s1 =</span> screeners, <span class="at">s2 =</span> screeners, </span>
-<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>                       <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span>) <span class="sc">|&gt;</span></span>
-<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(s1 <span class="sc">&lt;</span> s2) <span class="sc">|&gt;</span></span>
-<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>    <span class="fu">rowwise</span>() <span class="sc">|&gt;</span></span>
-<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">k =</span> <span class="fu">kappa2</span>(<span class="fu">cbind</span>(ratings[[s1]], ratings[[s2]]))<span class="sc">$</span>value)</span>
-<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>  mean_cohen <span class="ot">&lt;-</span> <span class="fu">mean</span>(pairs<span class="sc">$</span>k)</span>
-<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(</span>
-<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_articles   =</span> n,</span>
-<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a>    <span class="at">fleiss_kappa =</span> <span class="fu">round</span>(fleiss_k, <span class="dv">3</span>),</span>
-<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_cohen_k =</span> <span class="fu">round</span>(mean_cohen, <span class="dv">3</span>)</span>
-<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a><span class="co"># Batch 1 : screeners SM, SD, AC, TM</span></span>
-<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a>kappa_b1 <span class="ot">&lt;-</span> <span class="fu">compute_kappa</span>(</span>
-<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a>  batch1, </span>
-<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;decision_SM&quot;</span>, <span class="st">&quot;decision_SD&quot;</span>, <span class="st">&quot;decision_AC&quot;</span>, <span class="st">&quot;decision_TM&quot;</span>)</span>
-<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">Batch =</span> <span class="st">&quot;Batch 1 (33 articles)&quot;</span>, <span class="at">.before =</span> <span class="dv">1</span>)</span>
-<span id="cb2-61"><a href="#cb2-61" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-62"><a href="#cb2-62" aria-hidden="true" tabindex="-1"></a><span class="co"># Batch 2 : screeners AG, SD, SM, TM</span></span>
-<span id="cb2-63"><a href="#cb2-63" aria-hidden="true" tabindex="-1"></a>kappa_b2 <span class="ot">&lt;-</span> <span class="fu">compute_kappa</span>(</span>
-<span id="cb2-64"><a href="#cb2-64" aria-hidden="true" tabindex="-1"></a>  batch2, </span>
-<span id="cb2-65"><a href="#cb2-65" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;decision_AG&quot;</span>, <span class="st">&quot;decision_SD&quot;</span>, <span class="st">&quot;decision_SM&quot;</span>, <span class="st">&quot;decision_TM&quot;</span>)</span>
-<span id="cb2-66"><a href="#cb2-66" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">Batch =</span> <span class="st">&quot;Batch 2 (32 articles)&quot;</span>, <span class="at">.before =</span> <span class="dv">1</span>)</span>
-<span id="cb2-67"><a href="#cb2-67" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-68"><a href="#cb2-68" aria-hidden="true" tabindex="-1"></a><span class="co"># Batch 3 : à compléter une fois les 35 articles consolidés</span></span>
-<span id="cb2-69"><a href="#cb2-69" aria-hidden="true" tabindex="-1"></a><span class="co"># kappa_b3 &lt;- compute_kappa(</span></span>
-<span id="cb2-70"><a href="#cb2-70" aria-hidden="true" tabindex="-1"></a><span class="co">#   batch3,</span></span>
-<span id="cb2-71"><a href="#cb2-71" aria-hidden="true" tabindex="-1"></a><span class="co">#   c(&quot;decision_AG&quot;, &quot;decision_SD&quot;, &quot;decision_SM&quot;, &quot;decision_TM&quot;)</span></span>
-<span id="cb2-72"><a href="#cb2-72" aria-hidden="true" tabindex="-1"></a><span class="co"># ) |&gt; mutate(Batch = &quot;Batch 3 (35 articles)&quot;, .before = 1)</span></span>
-<span id="cb2-73"><a href="#cb2-73" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-74"><a href="#cb2-74" aria-hidden="true" tabindex="-1"></a><span class="co"># Table de synthèse</span></span>
-<span id="cb2-75"><a href="#cb2-75" aria-hidden="true" tabindex="-1"></a><span class="fu">bind_rows</span>(kappa_b1, kappa_b2) <span class="sc">|&gt;</span></span>
-<span id="cb2-76"><a href="#cb2-76" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(</span>
-<span id="cb2-77"><a href="#cb2-77" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Articles évalués</span><span class="st">`</span>  <span class="ot">=</span> n_articles,</span>
-<span id="cb2-78"><a href="#cb2-78" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Fleiss&#39; Kappa</span><span class="st">`</span>     <span class="ot">=</span> fleiss_kappa,</span>
-<span id="cb2-79"><a href="#cb2-79" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Cohen moyen (pairs)</span><span class="st">`</span> <span class="ot">=</span> mean_cohen_k</span>
-<span id="cb2-80"><a href="#cb2-80" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
-<span id="cb2-81"><a href="#cb2-81" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(</span>
-<span id="cb2-82"><a href="#cb2-82" aria-hidden="true" tabindex="-1"></a>    <span class="at">caption =</span> <span class="st">&quot;Évolution de l&#39;accord inter-évaluateurs par batch de screening&quot;</span>,</span>
-<span id="cb2-83"><a href="#cb2-83" aria-hidden="true" tabindex="-1"></a>    <span class="at">align   =</span> <span class="fu">c</span>(<span class="st">&quot;l&quot;</span>, <span class="st">&quot;r&quot;</span>, <span class="st">&quot;r&quot;</span>, <span class="st">&quot;r&quot;</span>)</span>
-<span id="cb2-84"><a href="#cb2-84" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>compute_kappa <span class="ot">&lt;-</span> <span class="cf">function</span>(df, screeners) {</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  ratings <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(doi, <span class="fu">all_of</span>(screeners)) <span class="sc">|&gt;</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(<span class="fu">if_all</span>(<span class="fu">all_of</span>(screeners), <span class="sc">~</span> <span class="sc">!</span><span class="fu">is.na</span>(.))) <span class="sc">|&gt;</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="fu">across</span>(<span class="fu">all_of</span>(screeners), binarize))</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  n <span class="ot">&lt;-</span> <span class="fu">nrow</span>(ratings)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  mat <span class="ot">&lt;-</span> ratings <span class="sc">|&gt;</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(<span class="sc">-</span>doi) <span class="sc">|&gt;</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">apply</span>(<span class="dv">1</span>, <span class="cf">function</span>(row) {</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>      <span class="fu">c</span>(<span class="at">Include =</span> <span class="fu">sum</span>(row <span class="sc">==</span> <span class="st">&quot;Include&quot;</span>), <span class="at">Exclude =</span> <span class="fu">sum</span>(row <span class="sc">==</span> <span class="st">&quot;Exclude&quot;</span>))</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    }) <span class="sc">|&gt;</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    <span class="fu">t</span>()</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>  fleiss_k   <span class="ot">&lt;-</span> <span class="fu">kappam.fleiss</span>(mat)<span class="sc">$</span>value</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  pairs <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="at">s1 =</span> screeners, <span class="at">s2 =</span> screeners,</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>                       <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span>) <span class="sc">|&gt;</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(s1 <span class="sc">&lt;</span> s2) <span class="sc">|&gt;</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    <span class="fu">rowwise</span>() <span class="sc">|&gt;</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">k =</span> <span class="fu">kappa2</span>(<span class="fu">cbind</span>(ratings[[s1]], ratings[[s2]]))<span class="sc">$</span>value)</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>  mean_cohen <span class="ot">&lt;-</span> <span class="fu">mean</span>(pairs<span class="sc">$</span>k)</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(<span class="at">n_articles =</span> n,</span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>         <span class="at">fleiss_kappa =</span> <span class="fu">round</span>(fleiss_k, <span class="dv">3</span>),</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>         <span class="at">mean_cohen_k =</span> <span class="fu">round</span>(mean_cohen, <span class="dv">3</span>))</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>kappa_b1 <span class="ot">&lt;-</span> <span class="fu">compute_kappa</span>(</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>  batch1, <span class="fu">c</span>(<span class="st">&quot;decision_SM&quot;</span>, <span class="st">&quot;decision_SD&quot;</span>, <span class="st">&quot;decision_AC&quot;</span>, <span class="st">&quot;decision_TM&quot;</span>)</span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">Batch =</span> <span class="st">&quot;Batch 1 (33 articles)&quot;</span>, <span class="at">.before =</span> <span class="dv">1</span>)</span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>kappa_b2 <span class="ot">&lt;-</span> <span class="fu">compute_kappa</span>(</span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>  batch2, <span class="fu">c</span>(<span class="st">&quot;decision_AG&quot;</span>, <span class="st">&quot;decision_SD&quot;</span>, <span class="st">&quot;decision_SM&quot;</span>, <span class="st">&quot;Decision_TM&quot;</span>)</span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">Batch =</span> <span class="st">&quot;Batch 2 (32 articles)&quot;</span>, <span class="at">.before =</span> <span class="dv">1</span>)</span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a><span class="co"># kappa_b3 &lt;- compute_kappa(</span></span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a><span class="co">#   batch3, c(&quot;decision_AG&quot;, &quot;decision_SD&quot;, &quot;decision_SM&quot;, &quot;decision_TM&quot;)</span></span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a><span class="co"># ) |&gt; mutate(Batch = &quot;Batch 3 (35 articles)&quot;, .before = 1)</span></span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a><span class="fu">bind_rows</span>(kappa_b1, kappa_b2) <span class="sc">|&gt;</span></span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(</span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Articles évalués</span><span class="st">`</span>    <span class="ot">=</span> n_articles,</span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Fleiss&#39; Kappa</span><span class="st">`</span>       <span class="ot">=</span> fleiss_kappa,</span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Cohen moyen (pairs)</span><span class="st">`</span> <span class="ot">=</span> mean_cohen_k</span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(</span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>    <span class="at">caption =</span> <span class="st">&quot;Évolution de l&#39;accord inter-évaluateurs par batch de screening&quot;</span>,</span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a>    <span class="at">align   =</span> <span class="fu">c</span>(<span class="st">&quot;l&quot;</span>, <span class="st">&quot;r&quot;</span>, <span class="st">&quot;r&quot;</span>, <span class="st">&quot;r&quot;</span>)</span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
@@ -3356,29 +3314,126 @@ vertical-align: -.125em;
 <tr class="odd">
 <td style="text-align: left;">Batch 1 (33 articles)</td>
 <td style="text-align: right;">33</td>
-<td style="text-align: right;">-0.796</td>
-<td style="text-align: right;">0.925</td>
+<td style="text-align: right;">-0.716</td>
+<td style="text-align: right;">0.891</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Batch 2 (32 articles)</td>
 <td style="text-align: right;">32</td>
-<td style="text-align: right;">-0.103</td>
-<td style="text-align: right;">0.424</td>
+<td style="text-align: right;">-0.017</td>
+<td style="text-align: right;">0.405</td>
 </tr>
 </tbody>
 </table>
 </div>
 <details class="code-fold">
 <summary>Afficher le code</summary>
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Note sous la table</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Note : Le Fleiss&#39; Kappa négatif s&#39;explique par le déséquilibre de la </span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="st">distribution (&gt;70% d&#39;inclusions), qui gonfle l&#39;accord attendu par hasard. </span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="st">Dans ce contexte, le Cohen moyen par paires est plus informatif.&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Note : Le Fleiss&#39; Kappa négatif s&#39;explique par le déséquilibre de la </span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="st">distribution (&gt;70% d&#39;inclusions), qui gonfle l&#39;accord attendu par hasard. </span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="st">Dans ce contexte, le Cohen moyen par paires est plus informatif.&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Note : Le Fleiss&#39; Kappa négatif s&#39;explique par le déséquilibre de la 
 distribution (&gt;70% d&#39;inclusions), qui gonfle l&#39;accord attendu par hasard. 
 Dans ce contexte, le Cohen moyen par paires est plus informatif.</code></pre>
+</div>
+</div>
+</section>
+<section id="évaluation-du-pilote-et-de-lia-par-rapport-au-gold-standard" class="level2">
+<h2 class="anchored" data-anchor-id="évaluation-du-pilote-et-de-lia-par-rapport-au-gold-standard">Évaluation du pilote et de l’IA par rapport au Gold Standard</h2>
+<p>Le consensus issu des discussions collectives constitue le Gold Standard. La sensibilité mesure le pourcentage d’articles pertinents correctement inclus, la spécificité le pourcentage d’articles non pertinents correctement exclus. L’objectif prioritaire est d’obtenir une haute sensibilité, afin de minimiser le risque de manquer des articles pertinents lors du screening complet.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Afficher le code</summary>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>compute_sens_spec <span class="ot">&lt;-</span> <span class="cf">function</span>(df, screener_col, <span class="at">gold_col =</span> <span class="st">&quot;Consensus&quot;</span>) {</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  df_clean <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(doi, <span class="at">screener =</span> <span class="fu">all_of</span>(screener_col), <span class="at">gold =</span> <span class="fu">all_of</span>(gold_col)) <span class="sc">|&gt;</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(screener) <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(gold)) <span class="sc">|&gt;</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>      <span class="at">screener_bin =</span> <span class="fu">binarize</span>(screener),</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>      <span class="at">gold_bin     =</span> <span class="fu">binarize</span>(gold)</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  n          <span class="ot">&lt;-</span> <span class="fu">nrow</span>(df_clean)</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  tp         <span class="ot">&lt;-</span> <span class="fu">sum</span>(df_clean<span class="sc">$</span>screener_bin <span class="sc">==</span> <span class="st">&quot;Include&quot;</span> <span class="sc">&amp;</span> df_clean<span class="sc">$</span>gold_bin <span class="sc">==</span> <span class="st">&quot;Include&quot;</span>)</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  tn         <span class="ot">&lt;-</span> <span class="fu">sum</span>(df_clean<span class="sc">$</span>screener_bin <span class="sc">==</span> <span class="st">&quot;Exclude&quot;</span> <span class="sc">&amp;</span> df_clean<span class="sc">$</span>gold_bin <span class="sc">==</span> <span class="st">&quot;Exclude&quot;</span>)</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>  fp         <span class="ot">&lt;-</span> <span class="fu">sum</span>(df_clean<span class="sc">$</span>screener_bin <span class="sc">==</span> <span class="st">&quot;Include&quot;</span> <span class="sc">&amp;</span> df_clean<span class="sc">$</span>gold_bin <span class="sc">==</span> <span class="st">&quot;Exclude&quot;</span>)</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>  fn         <span class="ot">&lt;-</span> <span class="fu">sum</span>(df_clean<span class="sc">$</span>screener_bin <span class="sc">==</span> <span class="st">&quot;Exclude&quot;</span> <span class="sc">&amp;</span> df_clean<span class="sc">$</span>gold_bin <span class="sc">==</span> <span class="st">&quot;Include&quot;</span>)</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  sensitivity <span class="ot">&lt;-</span> <span class="fu">round</span>(tp <span class="sc">/</span> (tp <span class="sc">+</span> fn) <span class="sc">*</span> <span class="dv">100</span>, <span class="dv">1</span>)</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>  specificity <span class="ot">&lt;-</span> <span class="fu">round</span>(tn <span class="sc">/</span> (tn <span class="sc">+</span> fp) <span class="sc">*</span> <span class="dv">100</span>, <span class="dv">1</span>)</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_articles  =</span> n,</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">TP =</span> tp, <span class="at">TN =</span> tn, <span class="at">FP =</span> fp, <span class="at">FN =</span> fn,</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>    Sensibilité  <span class="ot">=</span> <span class="fu">paste0</span>(sensitivity, <span class="st">&quot;%&quot;</span>),</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>    Spécificité  <span class="ot">=</span> <span class="fu">paste0</span>(specificity, <span class="st">&quot;%&quot;</span>)</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a><span class="co"># Batch 1 — Pilote (TM) et Claude</span></span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>sens_b1_TM     <span class="ot">&lt;-</span> <span class="fu">compute_sens_spec</span>(batch1, <span class="st">&quot;decision_TM&quot;</span>)     <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">Batch =</span> <span class="st">&quot;Batch 1&quot;</span>, <span class="at">Screener =</span> <span class="st">&quot;Pilote (TM)&quot;</span>, <span class="at">.before =</span> <span class="dv">1</span>)</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>sens_b1_Claude <span class="ot">&lt;-</span> <span class="fu">compute_sens_spec</span>(batch1, <span class="st">&quot;decision_Claude&quot;</span>)  <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">Batch =</span> <span class="st">&quot;Batch 1&quot;</span>, <span class="at">Screener =</span> <span class="st">&quot;Claude&quot;</span>,      <span class="at">.before =</span> <span class="dv">1</span>)</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a><span class="co"># Batch 2 — Pilote (TM) et Claude</span></span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>sens_b2_TM <span class="ot">&lt;-</span> <span class="fu">compute_sens_spec</span>(batch2, <span class="st">&quot;Decision_TM&quot;</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Batch =</span> <span class="st">&quot;Batch 2&quot;</span>, <span class="at">Screener =</span> <span class="st">&quot;Pilote (TM)&quot;</span>, <span class="at">.before =</span> <span class="dv">1</span>)</span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>sens_b2_Claude <span class="ot">&lt;-</span> <span class="fu">compute_sens_spec</span>(batch2, <span class="st">&quot;decision_Claude&quot;</span>)  <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">Batch =</span> <span class="st">&quot;Batch 2&quot;</span>, <span class="at">Screener =</span> <span class="st">&quot;Claude&quot;</span>,      <span class="at">.before =</span> <span class="dv">1</span>)</span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a><span class="co"># Batch 3 : à décommenter une fois disponible</span></span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a><span class="co"># sens_b3_TM     &lt;- compute_sens_spec(batch3, &quot;decision_TM&quot;)    |&gt; mutate(Batch = &quot;Batch 3&quot;, Screener = &quot;Pilote (TM)&quot;, .before = 1)</span></span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a><span class="co"># sens_b3_Claude &lt;- compute_sens_spec(batch3, &quot;decision_Claude&quot;) |&gt; mutate(Batch = &quot;Batch 3&quot;, Screener = &quot;Claude&quot;,      .before = 1)</span></span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a><span class="fu">bind_rows</span>(sens_b1_TM, sens_b1_Claude, sens_b2_TM, sens_b2_Claude) <span class="sc">|&gt;</span></span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(Batch, Screener, n_articles, Sensibilité, Spécificité) <span class="sc">|&gt;</span></span>
+<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="st">`</span><span class="at">Articles évalués</span><span class="st">`</span> <span class="ot">=</span> n_articles) <span class="sc">|&gt;</span></span>
+<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(</span>
+<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a>    <span class="at">caption =</span> <span class="st">&quot;Sensibilité et spécificité du pilote et de l&#39;IA par rapport au Gold Standard&quot;</span>,</span>
+<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a>    <span class="at">align   =</span> <span class="fu">c</span>(<span class="st">&quot;l&quot;</span>, <span class="st">&quot;l&quot;</span>, <span class="st">&quot;r&quot;</span>, <span class="st">&quot;r&quot;</span>, <span class="st">&quot;r&quot;</span>)</span>
+<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Sensibilité et spécificité du pilote et de l’IA par rapport au Gold Standard</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Batch</th>
+<th style="text-align: left;">Screener</th>
+<th style="text-align: right;">Articles évalués</th>
+<th style="text-align: right;">Sensibilité</th>
+<th style="text-align: right;">Spécificité</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Batch 1</td>
+<td style="text-align: left;">Pilote (TM)</td>
+<td style="text-align: right;">33</td>
+<td style="text-align: right;">95.8%</td>
+<td style="text-align: right;">100%</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Batch 1</td>
+<td style="text-align: left;">Claude</td>
+<td style="text-align: right;">33</td>
+<td style="text-align: right;">91.7%</td>
+<td style="text-align: right;">33.3%</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Batch 2</td>
+<td style="text-align: left;">Pilote (TM)</td>
+<td style="text-align: right;">32</td>
+<td style="text-align: right;">80%</td>
+<td style="text-align: right;">64.7%</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Batch 2</td>
+<td style="text-align: left;">Claude</td>
+<td style="text-align: right;">32</td>
+<td style="text-align: right;">100%</td>
+<td style="text-align: right;">70.6%</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 </section>
