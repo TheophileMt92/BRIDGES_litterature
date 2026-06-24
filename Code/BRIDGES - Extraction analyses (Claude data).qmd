@@ -1,0 +1,458 @@
+---
+title: "BRIDGES - Analyses d'extraction"
+author: "Théophile L. Mouton"
+date: today
+format:
+  html:
+    self-contained: true
+    css: Quarto_template/custom.css
+    include-before-body: Quarto_template/header.html
+    include-after-body: Quarto_template/footer.html
+    theme: none
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    code-tools: true
+editor: visual
+execute:
+  message: false
+  warning: false
+---
+
+::: {.callout-important appearance="simple"}
+## À propos de ces analyses
+
+Ce rapport présente des analyses **préliminaires et exploratoires** réalisées sur un
+sous-ensemble du corpus BRIDGES : les **207 articles** classés pertinents lors du tri
+des résumés et dont le texte intégral en accès libre a pu être récupéré
+automatiquement (sur les 816 articles retenus à ce stade).
+
+Les données d'extraction (Fiche Articles et Fiche Modèles) ont été produites par
+**extraction assistée par IA** (modèle Claude Sonnet 4.6, via l'API Anthropic),
+puis structurées selon nos maquettes d'extraction (v17 et v8). **Ces données n'ont
+pas encore été validées manuellement.** Elles peuvent contenir des erreurs
+d'extraction, et les résultats présentés ici doivent être considérés comme un
+**aperçu méthodologique**, non comme des résultats définitifs.
+
+L'objectif de ce rapport est double : (1) tester la faisabilité d'une extraction
+assistée par IA suivie d'une validation humaine, et (2) prototyper les visualisations
+prévues au calendrier (radars capacités vs utilisation, à venir : heatmap, clusters).
+La phase de validation des données précédera toute interprétation scientifique.
+:::
+
+
+## Chargement et préparation des données
+
+```{r}
+library(here)
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(readr)
+
+# Fiche Articles : champs en lignes, articles en colonnes -> transposer
+chemin <- here("Full text articles", "extraction_articles_BRIDGES_REMPLIE.xlsx")
+fa <- read_excel(chemin)
+
+cols_articles <- setdiff(names(fa), "Champ")
+cols_articles <- cols_articles[!str_detect(cols_articles, "\\[confiance\\]$")]
+
+articles <- fa |>
+  select(Champ, all_of(cols_articles)) |>
+  pivot_longer(-Champ, names_to = "article", values_to = "valeur") |>
+  pivot_wider(names_from = Champ, values_from = valeur)
+
+nrow(articles)  # doit afficher 207
+names(articles) # vérifier les colonnes disponibles
+```
+
+## Harmonisation des noms de modèles
+
+```{r}
+# Canonisation : un article -> son modèle principal.
+# L'ORDRE compte : familles dominantes / plus spécifiques d'abord.
+canoniser_modele <- function(x) {
+  l <- str_to_lower(tidyr::replace_na(as.character(x), ""))
+  dplyr::case_when(
+    l == "" | l == "nan"                                                   ~ "NA (à vérifier)",
+    str_detect(l, "ecopath|ecosim|ecospace|ewe|ecotran|rpath|ecotroph")   ~ "Ecopath with Ecosim (EwE)",
+    str_detect(l, "atlantis")                                             ~ "Atlantis",
+    str_detect(l, "osmose")                                               ~ "OSMOSE",
+    str_detect(l, "mizer|size-spectrum|size spectrum")                    ~ "Size-spectrum (mizer)",
+    str_detect(l, "displace")                                             ~ "DISPLACE",
+    str_detect(l, "corset|hireefsim|simreef")                             ~ "CORSET / dérivés récifaux",
+    str_detect(l, "dbem|bioclimate envelope|bioclimatic envelope")        ~ "DBEM (Dynamic Bioclimate Envelope Model)",
+    str_detect(l, "mefisto")                                              ~ "MEFISTO",
+    str_detect(l, "flbeia")                                               ~ "FLBEIA",
+    str_detect(l, "fishrent")                                             ~ "FishRent",
+    str_detect(l, "bemtool")                                              ~ "BEMTOOL",
+    str_detect(l, "isis-fish|isis fish")                                  ~ "ISIS-Fish",
+    str_detect(l, "poseidon")                                             ~ "POSEIDON",
+    str_detect(l, "strathe2e")                                            ~ "StrathE2E",
+    str_detect(l, "gadget")                                               ~ "Gadget",
+    str_detect(l, "sefes")                                                ~ "SEFES",
+    str_detect(l, "sprat")                                                ~ "SPRAT",
+    str_detect(l, "smart") & str_detect(l, "trawl")                       ~ "SMART",
+    str_detect(l, "oceanparcels|lagrangian")                              ~ "Biophysique / Lagrangien",
+    str_detect(l, "ergom|getm")                                           ~ "GETM-ERGOM (hydro-biogéochimique)",
+    str_detect(l, "loop analysis|qualitative network|signed digraph|qnm|conceptual ecosystem") ~ "Modèle qualitatif (loop analysis / QNM)",
+    str_detect(l, "system dynamics|stella|extendsim")                     ~ "System dynamics",
+    str_detect(l, "random forest|machine learning")                       ~ "Machine learning (RF, etc.)",
+    str_detect(l, "maxent|sdmtmb|species distribution|habitat model|habitat suitability") | l == "sdm" ~ "Species Distribution Model (SDM)",
+    str_detect(l, "mice|intermediate complexity|minimally realistic")     ~ "MICE (complexité intermédiaire)",
+    str_detect(l, "management strategy evaluation") | str_starts(l, "mse") ~ "MSE (Management Strategy Evaluation)",
+    str_detect(l, "earth system model| esm|gcm|cmip|mitgcm|noresm|mpi-esm") ~ "Earth System / Climate model",
+    str_detect(l, "bioécon|bioecon|bio-écon|biéconomique|gordon-schaefer|integrated assessment") | str_detect(l, "\\biam\\b") ~ "Modèle bioéconomique",
+    str_detect(l, "food web|trophic|ecological network")                  ~ "Modèle trophique / réseau",
+    str_detect(l, "population") & str_detect(l, "age|size|matrix|delay-difference|récolte|harvest") ~ "Dynamique de population (structurée)",
+    str_detect(l, "surplus production|aspic|cmsy")                        ~ "Production excédentaire",
+    str_detect(l, "bayesian")                                             ~ "Modèle bayésien",
+    TRUE                                                                  ~ "AUTRE / à classer"
+  )
+}
+
+articles <- articles |>
+  mutate(Modele_canonique = canoniser_modele(Modele_utilise))
+
+# Vérification : effectifs par modèle canonique
+articles |>
+  count(Modele_canonique, sort = TRUE)
+```
+
+## Distribution des modèles
+
+```{r}
+#| fig-width: 9
+#| fig-height: 6
+library(ggplot2)
+library(forcats)
+
+theme_set(theme_minimal(base_size = 12))
+
+articles |>
+  filter(Modele_canonique != "NA (à vérifier)") |>
+  count(Modele_canonique) |>
+  mutate(
+    pct = n / sum(n) * 100,
+    Modele_canonique = fct_reorder(Modele_canonique, n)
+  ) |>
+  ggplot(aes(n, Modele_canonique)) +
+  geom_col(fill = "#2E86AB") +
+  geom_text(aes(label = paste0(n, " (", round(pct, 1), "%)")),
+            hjust = -0.1, size = 3.2) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.18))) +
+  labs(
+    x = "Nombre d'articles", y = NULL,
+    title = "Modèles utilisés dans la littérature retenue",
+    subtitle = paste0("n = ", sum(articles$Modele_canonique != "NA (à vérifier)"), " articles")
+  ) +
+  theme(panel.grid.major.y = element_blank())
+```
+
+## Milieux étudiés
+
+```{r}
+#| fig-width: 8
+#| fig-height: 4.5
+articles |>
+  filter(!is.na(Milieu), Milieu != "NA") |>
+  count(Milieu) |>
+  mutate(
+    pct = n / sum(n) * 100,
+    Milieu = fct_reorder(Milieu, n)
+  ) |>
+  ggplot(aes(n, Milieu)) +
+  geom_col(fill = "#2E86AB") +
+  geom_text(aes(label = paste0(n, " (", round(pct, 1), "%)")),
+            hjust = -0.1, size = 3.2) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.18))) +
+  labs(
+    x = "Nombre d'articles", y = NULL,
+    title = "Milieux étudiés",
+    subtitle = paste0("n = ", sum(!is.na(articles$Milieu) & articles$Milieu != "NA"), " articles")
+  ) +
+  theme(panel.grid.major.y = element_blank())
+```
+
+## Contextes décisionnels
+
+```{r}
+#| fig-width: 9
+#| fig-height: 5
+articles |>
+  filter(!is.na(Contexte_decisionnel), Contexte_decisionnel != "NA") |>
+  separate_rows(Contexte_decisionnel, sep = "\\s*;\\s*") |>
+  filter(Contexte_decisionnel != "") |>
+  count(Contexte_decisionnel) |>
+  mutate(
+    pct = n / nrow(articles) * 100,   # % des articles (un article peut compter plusieurs fois)
+    Contexte_decisionnel = fct_reorder(Contexte_decisionnel, n)
+  ) |>
+  ggplot(aes(n, Contexte_decisionnel)) +
+  geom_col(fill = "#E8865A") +
+  geom_text(aes(label = paste0(n, " (", round(pct, 1), "%)")),
+            hjust = -0.1, size = 3.2) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.20))) +
+  labs(
+    x = "Nombre d'articles (comptage multiple possible)", y = NULL,
+    title = "Contextes décisionnels visés",
+    subtitle = "Un article peut relever de plusieurs contextes"
+  ) +
+  theme(panel.grid.major.y = element_blank())
+```
+
+## Radar plots : utilisation réelle des capacités par modèle
+
+```{r}
+#| fig-width: 11
+#| fig-height: 8
+library(tidyr)
+
+util_cols <- c("Util_physique","Util_biologique","Util_peche","Util_economique",
+               "Util_social","Util_spatial","Util_temporel","Util_scenarios",
+               "Util_tradeoffs","Util_incertitude")
+util_labels <- c("Physique","Biologique","Pêche","Économique","Social",
+                 "Spatial","Temporel","Scénarios","Trade-offs","Incertitude")
+
+modeles_radar <- c("Ecopath with Ecosim (EwE)", "Modèle bioéconomique",
+                   "Atlantis", "Species Distribution Model (SDM)", "OSMOSE")
+
+n_axes <- length(util_cols)
+
+# % d'utilisation par capacité et par modèle, avec angle de chaque axe
+radar_data <- articles |>
+  filter(Modele_canonique %in% modeles_radar) |>
+  select(Modele_canonique, all_of(util_cols)) |>
+  pivot_longer(all_of(util_cols), names_to = "capacite", values_to = "valeur") |>
+  mutate(oui = as.integer(valeur == "Oui")) |>
+  group_by(Modele_canonique, capacite) |>
+  summarise(pct = mean(oui, na.rm = TRUE) * 100, .groups = "drop") |>
+  mutate(
+    axis_id = match(capacite, util_cols),
+    angle   = (axis_id - 1) / n_axes * 2 * pi,   # angle de chaque axe (radians)
+    x = pct * sin(angle),                        # coordonnées cartésiennes
+    y = pct * cos(angle),
+    Modele_canonique = factor(Modele_canonique, levels = modeles_radar)
+  ) |>
+  arrange(Modele_canonique, axis_id)
+
+# Cercles de grille (25/50/75/100) et étiquettes d'axes
+grid_levels <- c(25, 50, 75, 100)
+circles <- expand.grid(level = grid_levels, t = seq(0, 2*pi, length.out = 100)) |>
+  mutate(x = level * sin(t), y = level * cos(t))
+
+axis_pos <- data.frame(
+  capacite = util_labels,
+  angle = (seq_len(n_axes) - 1) / n_axes * 2 * pi
+) |>
+  mutate(x = 112 * sin(angle), y = 112 * cos(angle))
+
+spokes <- data.frame(
+  angle = (seq_len(n_axes) - 1) / n_axes * 2 * pi
+) |>
+  mutate(x = 100 * sin(angle), y = 100 * cos(angle), x0 = 0, y0 = 0)
+
+ggplot() +
+  # grille circulaire
+  geom_path(data = circles, aes(x, y, group = level),
+            color = "grey85", linewidth = 0.3) +
+  # rayons
+  geom_segment(data = spokes, aes(x = x0, y = y0, xend = x, yend = y),
+               color = "grey85", linewidth = 0.3) +
+  # surface du radar (polygone fermé)
+  geom_polygon(data = radar_data, aes(x, y, group = Modele_canonique),
+               fill = "#2E86AB", alpha = 0.30, color = "#2E86AB", linewidth = 0.7) +
+  geom_point(data = radar_data, aes(x, y), color = "#2E86AB", size = 1.4) +
+  # étiquettes des axes
+  geom_text(data = axis_pos, aes(x, y, label = capacite), size = 2.7, color = "grey25") +
+  facet_wrap(~ Modele_canonique, ncol = 3) +
+  coord_equal(clip = "off") +
+  labs(
+    title = "Niche réalisée : utilisation des capacités par modèle",
+    subtitle = "% d'articles mobilisant chaque capacité (0 à 100%)"
+  ) +
+  theme_void(base_size = 10) +
+  theme(
+    strip.text = element_text(face = "bold", size = 9),
+    plot.title = element_text(face = "bold"),
+    panel.spacing = unit(2, "lines"),
+    plot.margin = margin(10, 20, 10, 20)
+  )
+```
+
+::: {.callout-note appearance="simple"}
+**À retenir.** Les modèles écosystémiques complets (Atlantis, EwE) couvrent un large
+éventail de capacités, tandis que les SDM se concentrent sur les dimensions
+biophysique et spatiale. Sur l'ensemble des modèles, la dimension **sociale** reste
+la moins mobilisée, ce qui suggère que la composante humaine des socio-écosystèmes
+marins demeure peu intégrée dans les outils de modélisation actuels. 
+:::
+
+## Consolidation de la Fiche Modèles (consensus des capacités)
+
+```{r}
+# Charger la Fiche Modèles (champs en lignes, modèles en colonnes)
+chemin_fm <- here("Full text articles", "fiche_modeles_BRIDGES_REMPLIE.xlsx")
+fm <- read_excel(chemin_fm)
+
+cols_fm <- setdiff(names(fm), "Champ")
+cols_fm <- cols_fm[!str_detect(cols_fm, "\\[confiance\\]$")]
+
+# Transposer : une ligne par fiche-modèle
+modeles_raw <- fm |>
+  select(Champ, all_of(cols_fm)) |>
+  pivot_longer(-Champ, names_to = "fiche", values_to = "valeur") |>
+  pivot_wider(names_from = Champ, values_from = valeur) |>
+  mutate(Modele_canonique = canoniser_modele(Nom_modele))
+
+# Les 11 champs Cap_
+cap_cols <- c("Cap_physique","Cap_biologique","Cap_peche","Cap_economique",
+              "Cap_social","Cap_spatial","Cap_temporel","Cap_scenarios",
+              "Cap_tradeoffs","Cap_incertitude","Cap_participation")
+
+# Conversion Oui/Optionnel/Non -> 1 / 0.5 / 0
+vers_num <- function(x) dplyr::case_when(
+  str_to_lower(x) == "oui"       ~ 1,
+  str_to_lower(x) == "optionnel" ~ 0.5,
+  str_to_lower(x) == "non"       ~ 0,
+  TRUE                           ~ NA_real_
+)
+
+# Niveaux valides de l'échelle
+niveaux_valides <- c(0, 0.5, 1)
+
+# Consensus : mode ; en cas d'égalité, moyenne ramenée au niveau valide le plus proche
+consensus_cap <- function(x) {
+  x <- x[!is.na(x)]
+  if (length(x) == 0) return(NA_real_)
+  tb <- table(x)
+  modes <- as.numeric(names(tb)[tb == max(tb)])
+  if (length(modes) == 1) {
+    modes
+  } else {
+    moy <- mean(modes)                                   # ex: {0, 0.5} -> 0.25
+    niveaux_valides[which.min(abs(niveaux_valides - moy))] # -> 0.5
+  }
+}
+
+# Degré d'accord : part de fiches portant la valeur consensus
+accord_cap <- function(x) {
+  x <- x[!is.na(x)]
+  if (length(x) == 0) return(NA_real_)
+  cons <- consensus_cap(x)
+  mean(x == cons)
+}
+
+modeles_long <- modeles_raw |>
+  select(Modele_canonique, all_of(cap_cols)) |>
+  pivot_longer(all_of(cap_cols), names_to = "capacite", values_to = "valeur") |>
+  mutate(num = vers_num(valeur))
+
+# Consensus par modèle x capacité
+fiche_modeles_consensus <- modeles_long |>
+  group_by(Modele_canonique, capacite) |>
+  summarise(
+    n_fiches = sum(!is.na(num)),
+    cap_consensus = consensus_cap(num),
+    accord = accord_cap(num),
+    .groups = "drop"
+  )
+
+# Aperçu pour les 5 modèles des radars
+modeles_radar <- c("Ecopath with Ecosim (EwE)", "Modèle bioéconomique",
+                   "Atlantis", "Species Distribution Model (SDM)", "OSMOSE")
+
+fiche_modeles_consensus |>
+  filter(Modele_canonique %in% modeles_radar) |>
+  arrange(Modele_canonique, capacite) |>
+  print(n = 100)
+```
+
+## Radar plots : niche réalisée vs niche fondamentale
+
+```{r}
+#| fig-width: 11
+#| fig-height: 8
+
+# Axes communs aux deux fiches : 10 axes (sans participation, absent des Util_)
+axes_communs <- c("physique","biologique","peche","economique","social",
+                  "spatial","temporel","scenarios","tradeoffs","incertitude")
+axes_labels  <- c("Physique","Biologique","Pêche","Économique","Social",
+                  "Spatial","Temporel","Scénarios","Trade-offs","Incertitude")
+n_axes <- length(axes_communs)
+
+# 1) Niche réalisée (déjà calculée) : on repart de radar_data en % -> ramené sur 0..1
+realisee <- radar_data |>
+  transmute(
+    Modele_canonique,
+    axe = tolower(gsub("Util_", "", as.character(capacite))),  # sécurité
+    valeur = pct / 100,
+    type = "Niche réalisée"
+  )
+
+# radar_data a déjà des labels ; on reconstruit proprement depuis articles pour être sûr
+realisee <- articles |>
+  filter(Modele_canonique %in% modeles_radar) |>
+  select(Modele_canonique, starts_with("Util_")) |>
+  pivot_longer(starts_with("Util_"), names_to = "axe", values_to = "v") |>
+  mutate(axe = gsub("Util_", "", axe), oui = as.integer(v == "Oui")) |>
+  group_by(Modele_canonique, axe) |>
+  summarise(valeur = mean(oui, na.rm = TRUE), .groups = "drop") |>
+  mutate(type = "Niche réalisée")
+
+# 2) Niche fondamentale (consensus) sur les mêmes axes
+fondamentale <- fiche_modeles_consensus |>
+  filter(Modele_canonique %in% modeles_radar) |>
+  mutate(axe = gsub("Cap_", "", capacite)) |>
+  filter(axe %in% axes_communs) |>
+  transmute(Modele_canonique, axe, valeur = cap_consensus, type = "Niche fondamentale")
+
+# 3) Combiner et calculer les coordonnées cartésiennes
+radar_combine <- bind_rows(realisee, fondamentale) |>
+  mutate(
+    axis_id = match(axe, axes_communs),
+    angle = (axis_id - 1) / n_axes * 2 * pi,
+    x = valeur * 100 * sin(angle),
+    y = valeur * 100 * cos(angle),
+    Modele_canonique = factor(Modele_canonique, levels = modeles_radar),
+    type = factor(type, levels = c("Niche fondamentale", "Niche réalisée"))
+  ) |>
+  arrange(Modele_canonique, type, axis_id)
+
+# Grille et axes (repris du bloc précédent)
+grid_levels <- c(25, 50, 75, 100)
+circles <- expand.grid(level = grid_levels, t = seq(0, 2*pi, length.out = 100)) |>
+  mutate(x = level * sin(t), y = level * cos(t))
+spokes <- data.frame(angle = (seq_len(n_axes) - 1) / n_axes * 2 * pi) |>
+  mutate(x = 100 * sin(angle), y = 100 * cos(angle), x0 = 0, y0 = 0)
+axis_pos <- data.frame(capacite = axes_labels,
+                       angle = (seq_len(n_axes) - 1) / n_axes * 2 * pi) |>
+  mutate(x = 115 * sin(angle), y = 115 * cos(angle))
+
+ggplot() +
+  geom_path(data = circles, aes(x, y, group = level), color = "grey88", linewidth = 0.3) +
+  geom_segment(data = spokes, aes(x0, y0, xend = x, yend = y), color = "grey88", linewidth = 0.3) +
+  # niche fondamentale = contour seul (pas de remplissage)
+  geom_polygon(data = filter(radar_combine, type == "Niche fondamentale"),
+               aes(x, y, group = Modele_canonique),
+               fill = NA, color = "#C0392B", linewidth = 0.7, linetype = "dashed") +
+  # niche réalisée = surface pleine
+  geom_polygon(data = filter(radar_combine, type == "Niche réalisée"),
+               aes(x, y, group = Modele_canonique),
+               fill = "#2E86AB", alpha = 0.30, color = "#2E86AB", linewidth = 0.7) +
+  geom_text(data = axis_pos, aes(x, y, label = capacite), size = 2.6, color = "grey25") +
+  facet_wrap(~ Modele_canonique, ncol = 3) +
+  coord_equal(clip = "off") +
+  labs(
+    title = "Niche fondamentale (contour) vs niche réalisée (surface)",
+    subtitle = "Contour rouge tireté = capacités théoriques du modèle ; surface bleue = utilisation observée"
+  ) +
+  theme_void(base_size = 10) +
+  theme(
+    strip.text = element_text(face = "bold", size = 9),
+    plot.title = element_text(face = "bold"),
+    panel.spacing = unit(2, "lines"),
+    plot.margin = margin(10, 20, 10, 20)
+  )
+```
