@@ -1,9 +1,16 @@
 ---
 title: "BRIDGES - Screening analyses"
 author: "Théophile L. Mouton"
+date: today
 format:
   html:
     self-contained: true
+    css: Quarto_template/custom.css
+    include-before-body: Quarto_template/header.html
+    include-after-body: Quarto_template/footer.html
+    theme: none
+    toc: true
+    toc-depth: 3
 editor: visual
 execute:
   message: false
@@ -22,6 +29,7 @@ un tirage aléatoire représentatif (`set.seed(42)`) et permet d'anticiper la
 charge de travail pour la phase de lecture full-text. L'incertitude autour de
 l'estimation centrale est quantifiée par un intervalle de confiance à 95%
 sur la proportion observée.
+
 ```{r}
 #| code-fold: true
 #| code-summary: "Afficher le code"
@@ -111,6 +119,7 @@ mécanistique vs statistique introduite lors de la réunion du 23 mars 2026).
 ```{r}
 #| code-fold: true
 #| code-summary: "Afficher le code"
+#| results: asis
 
 compute_kappa <- function(df, screeners) {
   ratings <- df |>
