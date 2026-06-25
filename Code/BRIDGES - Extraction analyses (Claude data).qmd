@@ -50,6 +50,7 @@ library(dplyr)
 library(tidyr)
 library(stringr)
 library(readr)
+library(ggplot2)
 
 # Fiche Articles : champs en lignes, articles en colonnes -> transposer
 chemin <- here("Full text articles", "extraction_articles_BRIDGES_REMPLIE.xlsx")
@@ -118,6 +119,105 @@ articles <- articles |>
 # Vérification : effectifs par modèle canonique
 articles |>
   count(Modele_canonique, sort = TRUE)
+```
+
+## Distribution géographique des études
+
+```{r}
+#| fig-width: 11
+#| fig-height: 6
+library(sf)
+library(rnaturalearth)
+
+# Centroïdes approximatifs de chaque bassin océanique (lon, lat)
+centroides <- tibble::tribble(
+  ~bassin,          ~lon,   ~lat,
+  "Atlantic",       -30,     10,
+  "Pacific",       -150,      0,
+  "Mediterranean",   18,     38,
+  "Southern",         0,    -65,
+  "Arctic",           0,     72,
+  "Indian",          75,    -20
+)
+
+bassins_raw <- articles |>
+  filter(!is.na(Bassin_oceanique), Bassin_oceanique != "NA") |>
+  select(Bassin_oceanique)
+
+# Nombre d'études globales : ajoutées ensuite à CHAQUE bassin
+n_global   <- sum(str_detect(bassins_raw$Bassin_oceanique, "Global"))
+n_multiple <- sum(bassins_raw$Bassin_oceanique == "Multiple")
+
+# Comptage des études localisées (hors Global et Multiple), doubles séparés
+bassin_localise <- bassins_raw |>
+  filter(!str_detect(Bassin_oceanique, "Global"),
+         Bassin_oceanique != "Multiple") |>
+  separate_rows(Bassin_oceanique, sep = "\\s*;\\s*") |>
+  filter(Bassin_oceanique %in% centroides$bassin) |>
+  count(Bassin_oceanique, name = "n_local")
+
+# On ajoute les études globales à chaque bassin
+bassin_counts <- centroides |>
+  left_join(bassin_localise, by = c("bassin" = "Bassin_oceanique")) |>
+  mutate(
+    n_local = tidyr::replace_na(n_local, 0),
+    n = n_local + n_global              # globales ajoutées partout
+  )
+
+monde <- ne_countries(scale = "medium", returnclass = "sf")
+
+ggplot() +
+  geom_sf(data = monde, fill = "grey92", color = "grey80", linewidth = 0.2) +
+  geom_point(data = bassin_counts,
+             aes(x = lon, y = lat, size = n, color = n)) +
+  geom_text(data = bassin_counts,
+            aes(x = lon, y = lat, label = n),
+            color = "white", fontface = "bold", size = 3) +
+  scale_size_continuous(range = c(6, 22), guide = "none") +
+  scale_color_gradient(low = "#5DADE2", high = "#1B4F72", name = "Nombre\nd'études") +
+  coord_sf(ylim = c(-90, 90), expand = FALSE) +
+  labs(
+    title = "Distribution géographique des études par bassin océanique",
+    subtitle = paste0("Chaque bassin inclut ", n_global,
+                      " études globales (comptées dans tous les bassins). ",
+                      n_multiple, " études multi-bassins réparties dans leurs bassins respectifs."),
+    x = NULL, y = NULL
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    panel.grid = element_line(color = "grey95"),
+    axis.text = element_blank(),
+    plot.title = element_text(face = "bold")
+  )
+```
+
+## Évolution temporelle des publications
+
+```{r}
+#| fig-width: 9
+#| fig-height: 5
+# L'année est encodée au début de l'identifiant article : "2010_EddyTd_478.pdf"
+articles <- articles |>
+  mutate(annee = as.integer(str_extract(article, "^\\d{4}")))
+
+evolution <- articles |>
+  filter(!is.na(annee)) |>
+  count(annee, name = "n") |>
+  arrange(annee) |>
+  mutate(cumul = cumsum(n))
+
+ggplot(evolution, aes(x = annee)) +
+  geom_col(aes(y = n), fill = "#AED6F1", width = 0.7) +          # publications par an
+  geom_line(aes(y = cumul), color = "#1B4F72", linewidth = 1) +  # cumul
+  geom_point(aes(y = cumul), color = "#1B4F72", size = 1.8) +
+  scale_x_continuous(breaks = seq(2010, 2026, 2)) +
+  labs(
+    x = NULL, y = "Nombre d'articles",
+    title = "Évolution des publications incluses",
+    subtitle = "Barres = articles par année ; ligne = cumul"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(panel.grid.minor = element_blank())
 ```
 
 ## Distribution des modèles
@@ -456,3 +556,199 @@ ggplot() +
     plot.margin = margin(10, 20, 10, 20)
   )
 ```
+
+## Heatmap comparative des modèles (capacités théoriques)
+
+```{r}
+#| fig-width: 10
+#| fig-height: 8.5
+library(forcats)
+
+cap_ordre <- c("Cap_physique","Cap_biologique","Cap_peche","Cap_economique","Cap_social",
+               "Cap_spatial","Cap_temporel","Cap_scenarios","Cap_tradeoffs",
+               "Cap_incertitude","Cap_participation")
+cap_labels <- c("Physique","Biologique","Pêche","Économique","Social",
+                "Spatial","Temporel","Scénarios","Trade-offs","Incertitude","Participation")
+
+heatmap_data <- fiche_modeles_consensus |>
+  filter(!is.na(cap_consensus), Modele_canonique != "NA (à vérifier)") |>
+  mutate(
+    capacite = factor(capacite, levels = cap_ordre, labels = cap_labels),
+    modele_lab = ifelse(n_fiches == 1, paste0(Modele_canonique, " *"), Modele_canonique),
+    niveau = factor(cap_consensus, levels = c(0, 0.5, 1),
+                    labels = c("Non", "Optionnel", "Oui"))
+  )
+
+ordre_modeles <- heatmap_data |>
+  group_by(modele_lab) |>
+  summarise(total = sum(cap_consensus), .groups = "drop") |>
+  arrange(total)
+
+heatmap_data <- heatmap_data |>
+  mutate(modele_lab = factor(modele_lab, levels = ordre_modeles$modele_lab))
+
+ggplot(heatmap_data, aes(x = capacite, y = modele_lab, fill = niveau)) +
+  geom_tile(color = "grey80", linewidth = 0.5) +
+  scale_fill_manual(
+    values = c("Non" = "white", "Optionnel" = "#7FB3D5", "Oui" = "#1B4F72"),
+    name = "Capacité", drop = FALSE
+  ) +
+  labs(
+    x = NULL, y = NULL,
+    title = "Capacités théoriques des modèles (niche fondamentale)",
+    subtitle = "Consensus des fiches modèles. * = modèle reposant sur une seule fiche (fiabilité moindre)"
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.text.y = element_text(size = 8),
+    panel.grid = element_blank(),
+    plot.title = element_text(face = "bold"),
+    plot.subtitle = element_text(margin = margin(b = 10)),
+    legend.position = "right"
+  )
+```
+
+::: {.callout-note appearance="simple"}
+**Rappel de prudence.** Données préliminaires, fiches non validées. Plusieurs modèles
+reposent sur une seule fiche (signalés par un astérisque), leur ligne est donc à confirmer.
+
+**À retenir.** La plupart des modèles couvrent solidement les dimensions biologique,
+halieutique, spatiale et temporelle. À l'inverse, les dimensions sociale, de participation
+des acteurs et, dans une moindre mesure, économique sont rarement intégrées. La capacité
+de participation est quasiment absente, sauf pour les modèles qualitatifs, ce qui souligne
+le faible ancrage des approches participatives dans les outils de modélisation existants.
+:::
+
+## Clusters / familles de modèles (ordination)
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7
+library(ggrepel)
+
+abrev <- c(
+  "Ecopath with Ecosim (EwE)" = "EwE",
+  "Modèle bioéconomique" = "Bioéconomique",
+  "Species Distribution Model (SDM)" = "SDM",
+  "DBEM (Dynamic Bioclimate Envelope Model)" = "DBEM",
+  "Earth System / Climate model" = "Earth System",
+  "Modèle qualitatif (loop analysis / QNM)" = "Qualitatif (QNM)",
+  "GETM-ERGOM (hydro-biogéochimique)" = "GETM-ERGOM",
+  "Dynamique de population (structurée)" = "Dyn. population",
+  "MICE (complexité intermédiaire)" = "MICE",
+  "CORSET / dérivés récifaux" = "CORSET",
+  "Size-spectrum (mizer)" = "Size-spectrum",
+  "Machine learning (RF, etc.)" = "Machine learning",
+  "AUTRE / à classer" = "Autre"
+)
+court <- function(x) ifelse(x %in% names(abrev), abrev[x], x)
+
+mat_cap <- fiche_modeles_consensus |>
+  filter(Modele_canonique != "NA (à vérifier)") |>
+  select(Modele_canonique, capacite, cap_consensus) |>
+  pivot_wider(names_from = capacite, values_from = cap_consensus) |>
+  tibble::column_to_rownames("Modele_canonique")
+mat_cap <- mat_cap[, sapply(mat_cap, function(x) var(x, na.rm = TRUE) > 0)]
+mat_cap[is.na(mat_cap)] <- 0
+
+pca <- prcomp(mat_cap, scale. = TRUE)
+var_expl <- round(100 * pca$sdev^2 / sum(pca$sdev^2), 1)
+
+usage <- articles |>
+  filter(Modele_canonique != "NA (à vérifier)") |>
+  count(Modele_canonique, name = "n_articles")
+
+# Clustering sur les coordonnées AFFICHÉES (PC1, PC2), cohérent avec le visuel
+coords_pca <- pca$x[, 1:2]
+clust <- hclust(dist(coords_pca), method = "ward.D2")
+familles <- cutree(clust, k = 5)   # 5 groupes : 3 nuages + 2 singletons attendus
+
+coords <- as.data.frame(pca$x[, 1:2]) |>
+  tibble::rownames_to_column("Modele_canonique") |>
+  left_join(usage, by = "Modele_canonique") |>
+  mutate(
+    n_articles = tidyr::replace_na(n_articles, 1),
+    famille = factor(paste("Famille", familles[Modele_canonique])),
+    label = court(Modele_canonique)
+  )
+
+# --- Repli manuel de l'axe Y pour l'outlier ---
+seuil <- -3.0          # en dessous : zone "repliée"
+facteur <- 0.25        # compression de la zone repliée
+coords <- coords |>
+  mutate(
+    PC2_plot = ifelse(PC2 < seuil, seuil + (PC2 - seuil) * facteur, PC2)
+  ) |>
+  arrange(desc(n_articles))   # petits points devant
+```
+
+## Variance expliquée par les axes de la PCA
+
+```{r}
+# Part de variance portée par chaque axe principal
+var_pct <- round(100 * pca$sdev^2 / sum(pca$sdev^2), 1)
+variance_table <- data.frame(
+  Axe = paste0("PC", seq_along(var_pct)),
+  `Variance (%)` = var_pct,
+  `Cumul (%)` = round(cumsum(var_pct), 1),
+  check.names = FALSE
+)
+head(variance_table, 5)   # les 5 premiers axes
+```
+
+
+```{r}
+ggplot(coords, aes(PC1, PC2_plot)) +
+  geom_hline(yintercept = 0, color = "grey90", linewidth = 0.3) +
+  geom_vline(xintercept = 0, color = "grey90", linewidth = 0.3) +
+  # marque de rupture d'axe (deux petits traits obliques à gauche)
+  annotate("text", x = -Inf, y = seuil, label = "≈", hjust = 1.5, size = 5, color = "grey50") +
+  geom_hline(yintercept = seuil, linetype = "dotted", color = "grey75", linewidth = 0.3) +
+  geom_point(aes(size = n_articles, color = famille), alpha = 0.75) +
+  geom_text_repel(aes(label = label, color = famille),
+                  size = 2.8, max.overlaps = 30, show.legend = FALSE,
+                  segment.size = 0.2, min.segment.length = 0) +
+  scale_size_continuous(range = c(3, 16), name = "Nb d'articles",
+                        breaks = c(5, 20, 40, 60)) +
+  scale_color_brewer(palette = "Set2", name = "Famille") +
+  labs(
+    title = "Familles de modèles selon leurs profils de capacités",
+    subtitle = "Ordination (PCA) : proximité = profils similaires ; taille = usage dans le corpus",
+    x = paste0("PC1 (", var_expl[1], "%)"),
+    y = paste0("PC2 (", var_expl[2], "%)"),
+    caption = "Axe vertical comprimé sous la ligne pointillée (zone vide) ; le modèle qualitatif reste le plus atypique."
+  ) +
+  guides(color = guide_legend(override.aes = list(size = 5)),
+         size = guide_legend(override.aes = list(color = "grey40"))) +
+  theme_minimal(base_size = 11) +
+  theme(
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(face = "bold"),
+    plot.caption = element_text(hjust = 0, face = "italic", color = "grey50"),
+    legend.position = "right"
+  )
+```
+
+::: {.callout-note appearance="simple"}
+**Lecture des familles** (regroupement sur le plan PCA, qui résume environ 50% de la
+variance des profils de capacités) :
+
+- **Famille 1 (vert, à droite)** : modèles à dominante biophysique et environnementale,
+souvent spatialisés (SDM, DBEM, Earth System, GETM-ERGOM, SPRAT).
+
+- **Famille 2 (orange, à gauche)** : modèles intégrant fortement les dimensions humaines
+(économique, sociale, flottilles). Modèles bioéconomiques et socio-économiques
+(modèle bioéconomique, FishRent, System dynamics, SEFES, POSEIDON, DISPLACE, Atlantis).
+
+- **Famille 3 (violet, centre)** : modèles écosystémiques et de dynamique des populations
+à dominante biologique et halieutique (EwE, OSMOSE, MICE, SMART, CORSET, Size-spectrum,
+dynamique de population, MEFISTO).
+
+- **Famille 4 (Machine learning)** et **Famille 5 (modèle qualitatif / QNM)** : profils
+atypiques isolés. Le modèle qualitatif se distingue nettement comme le seul à intégrer
+la participation des acteurs.
+
+*Familles définies sur les deux axes affichés (50% de la variance) ; données préliminaires,
+fiches non validées. Les regroupements sont indicatifs. La visualisation place Machine learning loin des SDM, ce qui contredit l'attendu et révèle une fiche à corriger.*
+:::
