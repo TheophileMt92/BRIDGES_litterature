@@ -220,6 +220,138 @@ ggplot(evolution, aes(x = annee)) +
   theme(panel.grid.minor = element_blank())
 ```
 
+## Saturation de la diversité des frameworks (ordre ASReview)
+
+```{r}
+#| fig-width: 9
+#| fig-height: 5.5
+library(purrr)
+library(lubridate)
+
+# --- 1. Charger l'export ASReview (816 inclus, avec asreview_time et auteurs) ---
+chemin_asr <- here("Full text articles", "asreview_relevant_BRIDGES.csv")
+asr <- read_csv(chemin_asr, show_col_types = FALSE)
+
+# Ordre ASReview = ordre chronologique des décisions (asreview_time)
+asr <- asr |>
+  mutate(
+    t = ymd_hms(asreview_time),
+    key_year   = str_extract(as.character(year), "\\d{4}"),
+    key_author = str_to_lower(word(str_split_fixed(authors, ";", 2)[,1], 1))
+  ) |>
+  arrange(t) |>
+  mutate(asr_rank = row_number())
+
+# --- 2. Préparer les 207 : clé année + fragment auteur depuis l'identifiant ---
+art_key <- articles |>
+  mutate(
+    key_year    = str_sub(article, 1, 4),
+    author_frag = str_to_lower(str_match(article, "\\d{4}_([A-Za-z\\-]+)_")[,2])
+  ) |>
+  select(article, Modele_canonique, key_year, author_frag)
+
+# --- 3. Jointure : pour chaque article, le rang ASReview le plus précoce
+#        dont l'année correspond et dont le nom d'auteur est préfixe du fragment ---
+attribuer_rang <- function(yr, frag, deja_pris) {
+  if (is.na(yr) || is.na(frag) || frag == "") return(NA_integer_)
+  cand <- asr |>
+    filter(
+      key_year == yr,
+      !is.na(key_author), key_author != "",
+      str_starts(frag, key_author) |
+        str_starts(key_author, str_sub(frag, 1, pmax(3, nchar(key_author))))
+    ) |>
+    filter(!asr_rank %in% deja_pris) |>
+    arrange(asr_rank)
+  if (nrow(cand) == 0) return(NA_integer_)
+  cand$asr_rank[1]
+}
+
+pris <- integer(0)
+art_key$asr_rank <- NA_integer_
+for (i in seq_len(nrow(art_key))) {
+  rk <- attribuer_rang(art_key$key_year[i], art_key$author_frag[i], pris)
+  art_key$asr_rank[i] <- rk
+  if (!is.na(rk)) pris <- c(pris, rk)
+}
+
+cat("Articles appariés à un rang ASReview :", sum(!is.na(art_key$asr_rank)), "/ 207\n")
+
+# --- 4. Courbe d'accumulation en ordre ASReview ---
+sat_asr <- art_key |>
+  filter(!is.na(asr_rank),
+         !Modele_canonique %in% c("NA (à vérifier)", "AUTRE / à classer")) |>
+  arrange(asr_rank) |>
+  mutate(
+    rang = row_number(),
+    modeles_cumules     = accumulate(Modele_canonique, union),
+    n_modeles_distincts = map_int(modeles_cumules, length),
+    nouveau             = n_modeles_distincts > lag(n_modeles_distincts, default = 0)
+  )
+
+n_total   <- nrow(sat_asr)
+n_modeles <- max(sat_asr$n_modeles_distincts)
+dernier   <- sat_asr |> filter(nouveau) |> slice_tail(n = 1) |> pull(rang)
+cat("Articles analysés        :", n_total, "\n")
+cat("Frameworks distincts     :", n_modeles, "\n")
+cat("Dernier nouveau framework au rang", dernier,
+    "(", n_total - dernier, "articles sans nouveauté ensuite )\n")
+
+ggplot(sat_asr, aes(rang, n_modeles_distincts)) +
+  geom_step(color = "#1B4F72", linewidth = 0.8) +
+  geom_point(data = filter(sat_asr, nouveau), color = "#C0392B", size = 1.8) +
+  labs(
+    x = "Articles examinés (ordre ASReview, pertinence décroissante)",
+    y = "Frameworks de modélisation distincts (cumul)",
+    title = "Saturation de la diversité des frameworks de modélisation",
+    subtitle = paste0("Ordre de screening ASReview. Points rouges = nouveau framework (n = ",
+                      n_total, ", données préliminaires)")
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(face = "bold"))
+```
+
+## Estimateur de richesse (combien de frameworks non encore observés ?)
+
+```{r}
+library(vegan)
+
+# Matrice articles × frameworks (présence/absence) sur les articles appariés
+mat_frameworks <- art_key |>
+  filter(!is.na(asr_rank),
+         !Modele_canonique %in% c("NA (à vérifier)", "AUTRE / à classer")) |>
+  mutate(present = 1) |>
+  distinct(article, Modele_canonique, present) |>
+  pivot_wider(names_from = Modele_canonique, values_from = present, values_fill = 0) |>
+  select(-article)
+
+est <- specpool(mat_frameworks)
+print(est)
+
+obs <- est$Species
+chao <- est$chao
+cat("\nFrameworks observés        :", obs, "\n")
+cat("Frameworks estimés (Chao1) :", round(chao, 1), "\n")
+cat("Complétude estimée         :", round(100 * obs / chao, 1), "%\n")
+```
+
+::: {.callout-note appearance="simple"}
+**À retenir.** L'accumulation des frameworks de modélisation ralentit nettement
+après la capture rapide des paradigmes dominants (premiers rangs de pertinence
+ASReview). Sur ce sous-ensemble de 197 articles, 27 frameworks distincts sont
+identifiés, et l'estimateur Chao1 en estime environ 31,5 au total (erreur standard
+≈ 4,8), soit une complétude d'environ 86 %. Autrement dit, la revue aurait déjà
+capté la grande majorité de la diversité des approches, quelques frameworks
+supplémentaires restant attendus.
+
+**Prudence.** La diversité n'est pas encore strictement saturée : de nouveaux
+frameworks apparaissent encore dans le dernier quart du sous-ensemble. Par ailleurs,
+ces 197 articles constituent un sous-ensemble contraint par la disponibilité en
+accès libre, et non l'ensemble du corpus. Cette analyse est donc indicative ;
+elle peut être reconduite sur un corpus plus large.
+:::
+
 ## Distribution des modèles
 
 ```{r}
@@ -524,6 +656,14 @@ radar_combine <- bind_rows(realisee, fondamentale) |>
 grid_levels <- c(25, 50, 75, 100)
 circles <- expand.grid(level = grid_levels, t = seq(0, 2*pi, length.out = 100)) |>
   mutate(x = level * sin(t), y = level * cos(t))
+
+# Étiquettes chiffrées des cercles de grille, placées sur l'axe vertical (haut)
+grid_labels <- data.frame(
+  level = grid_levels,
+  x = 0,
+  y = grid_levels
+)
+
 spokes <- data.frame(angle = (seq_len(n_axes) - 1) / n_axes * 2 * pi) |>
   mutate(x = 100 * sin(angle), y = 100 * cos(angle), x0 = 0, y0 = 0)
 axis_pos <- data.frame(capacite = axes_labels,
@@ -541,7 +681,10 @@ ggplot() +
   geom_polygon(data = filter(radar_combine, type == "Niche réalisée"),
                aes(x, y, group = Modele_canonique),
                fill = "#2E86AB", alpha = 0.30, color = "#2E86AB", linewidth = 0.7) +
-  geom_text(data = axis_pos, aes(x, y, label = capacite), size = 2.6, color = "grey25") +
+  geom_text(data = grid_labels,
+          aes(x = x, y = y, label = paste0(level, "%")),
+          size = 2.4, color = "grey45",
+          hjust = 0.5, vjust = -0.3) +
   facet_wrap(~ Modele_canonique, ncol = 3) +
   coord_equal(clip = "off") +
   labs(
@@ -579,13 +722,24 @@ heatmap_data <- fiche_modeles_consensus |>
                     labels = c("Non", "Optionnel", "Oui"))
   )
 
+# Ordonner les MODÈLES (lignes) par capacité totale croissante
 ordre_modeles <- heatmap_data |>
   group_by(modele_lab) |>
   summarise(total = sum(cap_consensus), .groups = "drop") |>
   arrange(total)
 
+# Ordonner les CAPACITÉS (colonnes) par fréquence décroissante : les plus
+# couvertes à gauche, les plus rares (Social, Participation) à droite
+ordre_capacites <- heatmap_data |>
+  group_by(capacite) |>
+  summarise(total = sum(cap_consensus), .groups = "drop") |>
+  arrange(desc(total))
+
 heatmap_data <- heatmap_data |>
-  mutate(modele_lab = factor(modele_lab, levels = ordre_modeles$modele_lab))
+  mutate(
+    modele_lab = factor(modele_lab, levels = ordre_modeles$modele_lab),
+    capacite   = factor(capacite, levels = ordre_capacites$capacite)
+  )
 
 ggplot(heatmap_data, aes(x = capacite, y = modele_lab, fill = niveau)) +
   geom_tile(color = "grey80", linewidth = 0.5) +
@@ -621,6 +775,17 @@ le faible ancrage des approches participatives dans les outils de modélisation 
 :::
 
 ## Clusters / familles de modèles (ordination)
+
+::: {.callout-note appearance="simple"}
+**Note méthodologique.** Cette ordination repose sur les onze capacités théoriques
+des modèles (`Cap_`), des variables ordinales à trois niveaux (Non, Optionnel, Oui)
+encodées numériquement (0 / 0,5 / 1). La PCA suppose en principe des variables
+quantitatives continues : traiter ces capacités ordinales comme numériques est une
+approximation acceptable pour une visualisation exploratoire, mais impose une
+équidistance entre niveaux qui reste conventionnelle. Cette ordination est donc
+indicative. Une version méthodologiquement plus rigoureuse (distance de Gower puis
+PCoA, ou analyse des correspondances multiples) est envisageable avant publication.
+:::
 
 ```{r}
 #| fig-width: 10
