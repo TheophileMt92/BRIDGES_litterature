@@ -7,7 +7,7 @@ format:
     toc: true
     toc-location: right
     css: custom.css
-    output-file: "WoS queries.html"
+    output-file: "WoS_queries.html"
     self-contained: true
     code-fold: true
     code-tools: true
@@ -41,7 +41,8 @@ Results: 3,715 articles.
 wos_files <- paste0("WoS_query_", 1:8, ".txt")
 
 wos_list <- lapply(wos_files, function(f) {
-  convert2df(here::here("WoS_query_130226", f), dbsource = "wos", format = "plaintext")
+  convert2df(here::here("WoS queries", "WoS_query_130226", f), 
+             dbsource = "wos", format = "plaintext")
 })
 
 all_wos <- bind_rows(wos_list) |> distinct(DI, .keep_all = TRUE)
@@ -71,17 +72,17 @@ sample_100 |>
     title = TI, abstract = AB, authors = AU,
     year = PY, journal = SO, doi = DI, keywords = DE
   ) |>
-  write_csv(here::here("WoS_query_130226", "BRIDGES_sample_100.csv"))
+  write_csv(here::here("WoS queries", "WoS_query_130226", "BRIDGES_sample_100.csv"))
 
 sample_33 |>
   transmute(
     title = TI, abstract = AB, authors = AU,
     year = PY, journal = SO, doi = DI, keywords = DE
   ) |>
-  write_csv(here::here("WoS_query_130226", "BRIDGES_sample_33.csv"))
+  write_csv(here::here("WoS queries", "WoS_query_130226", "BRIDGES_sample_33.csv"))
 
 # Charger les 33 déjà screenés
-sample_33 <- read_csv(here("WoS_query_130226", "BRIDGES_sample_33.csv"))
+sample_33 <- readr::read_csv(here::here("WoS queries", "WoS_query_130226", "BRIDGES_sample_33.csv"))
 
 # Exclure les 33 du sample_100 via le DOI
 sample_67 <- sample_100 |>
@@ -95,7 +96,7 @@ sample_67 |>
     title = TI, abstract = AB, authors = AU,
     year = PY, journal = SO, doi = DI, keywords = DE
   ) |>
-  write_csv(here("WoS_query_130226", "BRIDGES_sample_67.csv"))
+  write_csv(here::here("WoS queries", "WoS_query_130226", "BRIDGES_sample_67.csv"))
 ```
 
 ## Filter queries (Year, Citations)
@@ -272,16 +273,8 @@ Pour corriger ce biais structurel, nous appliquons des seuils de citations diff�
 Cette approche reconnaît que les articles issus du Sud global accumulent structurellement moins de citations en raison de barrières linguistiques, d'effets de réseau, et de la hiérarchie des revues scientifiques.
 
 ```{r}
-# Filtre ajusté : seuil réduit pour les articles authentiquement du Sud
-final_wos_adjusted <- all_wos_2010 |>
-  filter(
-    # Critères standards pour le Nord et collaborations
-    (category %in% c("Nord uniquement", "Minorité Sud (collab)") & 
-       (TC >= 30 | (PY >= 2023 & TC >= 5))) |
-    # Seuil réduit pour Sud uniquement et Majorité Sud
-    (category %in% c("Sud uniquement", "Majorité Sud") & 
-       (TC >= 10 | (PY >= 2023 & TC >= 2)))
-  )
+# Décision : pas de filtre citations — screening complet via ASReview
+final_wos_adjusted <- all_wos_2010
 ```
 
 # Filtering by WoS category (domain/topic)
@@ -340,6 +333,30 @@ final_wos_adjusted |>
   head(20)
 ```
 
+```{r}
+#| label: export-all-wos
+#| code-fold: true
+
+# Export du corpus complet dédoublonné (avant filtres temporel et WC)
+all_wos |>
+  transmute(
+    title    = TI,
+    abstract = AB,
+    authors  = AU,
+    year     = PY,
+    journal  = SO,
+    doi      = DI,
+    keywords = DE,
+    notes    = paste0("Citations: ", TC, " | WC: ", WC)
+  ) |>
+  write_csv(
+    here::here("WoS queries", "WoS_query_130226",
+               "BRIDGES_asreview_3686.csv")
+  )
+
+cat("Exporté :", nrow(all_wos), "articles\n")
+```
+
 ## Export to ASReview
 
 ```{r}
@@ -380,7 +397,8 @@ final_filtered |>
     keywords = DE,
     notes = paste("Citations:", TC, "| Category:", category)
   ) |> 
-  write_csv(here::here("WoS_query_130226", "BRIDGES_asreview.csv"))
+  write_csv(here::here("WoS queries", "WoS_query_130226", "BRIDGES_asreview.csv"))
+
 ```
 
 ```{r}
@@ -410,3 +428,237 @@ final_filtered |>
   select(TI, PY, SO, DI, TC) |> 
   arrange(TI)
 ```
+
+## Traçabilité des exclusions du pipeline
+
+L'export final vers ASReview résulte d'une chaîne de filtres successifs
+appliqués au corpus brut issu des 8 fichiers WoS. Pour assurer la
+transparence méthodologique et documenter chaque exclusion, on reconstruit
+ici l'audit trail complet : chaque article exclu est tracé avec son étape
+et sa raison d'exclusion. Quatre étapes sont distinguées : (1) dédoublonnage
+sur DOI, (2) filtre temporel ≥ 2010, (3) filtre par catégories WoS, et
+(4) contraintes ASReview à l'import (abstract ou DOI manquants).
+
+```{r}
+#| label: traceability-setup
+#| code-fold: true
+#| code-summary: "Reconstruct pre-deduplication state"
+
+library(writexl)
+
+# Reuses wos_list, all_wos, all_wos_2010, final_filtered, relevant_categories
+# from the previous sections. Run them first if R was restarted.
+stopifnot(
+  exists("wos_list"), exists("all_wos"),
+  exists("all_wos_2010"), exists("final_filtered"),
+  exists("relevant_categories")
+)
+
+# Re-bind without deduplication to capture the raw state
+all_wos_raw <- bind_rows(wos_list)
+
+# Safeguard: ensure UT (WoS accession number) exists
+if (!"UT" %in% names(all_wos_raw)) {
+  all_wos_raw <- all_wos_raw |> mutate(UT = NA_character_)
+}
+
+cat("Corpus brut (8 fichiers WoS, avant dédoublonnage) :",
+    nrow(all_wos_raw), "articles\n")
+```
+
+```{r}
+#| label: traceability-step1
+#| code-fold: true
+#| code-summary: "Step 1: duplicate DOIs"
+
+# Step 1 : duplicate DOIs eliminated by `distinct(DI, .keep_all = TRUE)`.
+# Note: `distinct()` treats NA DOIs as identical, so multiple records with
+# missing DOI collapse to one. We reproduce this behaviour here.
+duplicates_excluded <- all_wos_raw |>
+  group_by(DI) |>
+  filter(n() > 1) |>
+  arrange(DI) |>
+  slice(-1) |>            # keep first occurrence, mark the rest as duplicates
+  ungroup() |>
+  mutate(
+    exclusion_step   = "1_duplicate_DOI",
+    exclusion_reason = if_else(
+      is.na(DI),
+      "DOI manquant collapsé par déduplication",
+      "Doublon DOI lors de la fusion des 8 exports WoS"
+    )
+  )
+
+cat("Étape 1 (dédoublonnage DOI) :",
+    nrow(all_wos_raw), "→", nrow(all_wos),
+    "(", nrow(duplicates_excluded), "doublons exclus)\n")
+```
+
+```{r}
+#| label: traceability-step2
+#| code-fold: true
+#| code-summary: "Step 2: pre-2010 filter"
+
+# Step 2 : articles published before 2010 (or with missing year)
+pre_2010_excluded <- all_wos |>
+  filter(PY < 2010 | is.na(PY)) |>
+  mutate(
+    exclusion_step   = "2_pre_2010",
+    exclusion_reason = if_else(
+      is.na(PY),
+      "Année de publication manquante",
+      "Publié avant 2010"
+    )
+  )
+
+cat("Étape 2 (filtre temporel ≥ 2010) :",
+    nrow(all_wos), "→", nrow(all_wos_2010),
+    "(", nrow(pre_2010_excluded), "articles exclus)\n")
+```
+
+```{r}
+#| label: traceability-step3
+#| code-fold: true
+#| code-summary: "Step 3: WoS category filter"
+
+# Step 3 : articles outside the relevant WoS Categories (WC field)
+wrong_category_excluded <- all_wos_2010 |>
+  filter(!str_detect(WC, paste(relevant_categories, collapse = "|"))) |>
+  mutate(
+    exclusion_step   = "3_wrong_WC_category",
+    exclusion_reason = "Hors catégories WoS pertinentes (WC)"
+  )
+
+cat("Étape 3 (filtre catégories WoS) :",
+    nrow(all_wos_2010), "→", nrow(final_filtered),
+    "(", nrow(wrong_category_excluded), "articles exclus)\n")
+```
+
+```{r}
+#| label: traceability-step4
+#| code-fold: true
+#| code-summary: "Step 4: ASReview import constraints"
+
+# Step 4 : ASReview import drops records with missing abstract or missing DOI
+asreview_excluded <- final_filtered |>
+  filter(is.na(AB) | AB == "" | is.na(DI) | DI == "") |>
+  mutate(
+    exclusion_step   = "4_asreview_import",
+    exclusion_reason = case_when(
+      (is.na(AB) | AB == "") & (is.na(DI) | DI == "") ~ "Abstract ET DOI manquants",
+      is.na(AB) | AB == ""                            ~ "Abstract manquant",
+      is.na(DI) | DI == ""                            ~ "DOI manquant"
+    )
+  )
+
+cat("Étape 4 (contraintes ASReview à l'import) :",
+    nrow(final_filtered), "→",
+    nrow(final_filtered) - nrow(asreview_excluded),
+    "(", nrow(asreview_excluded), "articles potentiellement exclus)\n\n")
+
+cat("Note : le décompte effectif d'ASReview (3 013 articles) doit être\n",
+    "confirmé par un export du projet ASReview LAB. Un éventuel écart\n",
+    "résiduel s'explique par sa déduplication interne complémentaire\n",
+    "(titre, auteurs, abstract) qui complète la déduplication par DOI.\n",
+    sep = "")
+```
+
+```{r}
+#| label: traceability-export
+#| code-fold: true
+#| code-summary: "Build and export the audit trail"
+
+# Combine all exclusions into a single dataframe
+all_excluded <- bind_rows(
+  duplicates_excluded,
+  pre_2010_excluded,
+  wrong_category_excluded,
+  asreview_excluded
+) |>
+  transmute(
+    UT,
+    title            = TI,
+    authors          = AU,
+    year             = PY,
+    journal          = SO,
+    doi              = DI,
+    WC,
+    citations        = TC,
+    document_type    = DT,
+    language         = LA,
+    exclusion_step,
+    exclusion_reason
+  )
+
+# Build the included set (final_filtered minus step 4)
+included_articles <- final_filtered |>
+  filter(!(is.na(AB) | AB == "" | is.na(DI) | DI == "")) |>
+  transmute(
+    UT,
+    title            = TI,
+    authors          = AU,
+    year             = PY,
+    journal          = SO,
+    doi              = DI,
+    WC,
+    citations        = TC,
+    document_type    = DT,
+    language         = LA,
+    exclusion_step   = NA_character_,
+    exclusion_reason = NA_character_
+  )
+
+# Full audit trail: every article from the raw corpus with its final status
+full_audit_trail <- bind_rows(
+  included_articles |> mutate(status = "included"),
+  all_excluded      |> mutate(status = "excluded")
+) |>
+  select(status, UT, title, authors, year, journal, doi, WC,
+         citations, document_type, language,
+         exclusion_step, exclusion_reason)
+
+# Export both files
+write_xlsx(
+  all_excluded,
+  here::here("WoS queries", "WoS_query_130226",
+             "BRIDGES_excluded_articles.xlsx")
+)
+
+write_xlsx(
+  full_audit_trail,
+  here::here("WoS queries", "WoS_query_130226",
+             "BRIDGES_full_audit_trail.xlsx")
+)
+
+cat("Exports écrits dans WoS queries/WoS_query_130226/ :\n")
+cat("  - BRIDGES_excluded_articles.xlsx :",
+    nrow(all_excluded), "lignes\n")
+cat("  - BRIDGES_full_audit_trail.xlsx  :",
+    nrow(full_audit_trail), "lignes\n")
+```
+
+## Note méthodologique sur le rapport de screening
+
+La formulation actuelle dans `BRIDGES_screening_analyses.qmd` ("673 articles
+ont été exclus automatiquement par ASReview en raison de métadonnées
+manquantes, notamment les abstracts") est imprécise. La quasi-totalité des
+exclusions a lieu en amont d'ASReview, dans les étapes 1 à 3 du présent
+script (dédoublonnage DOI, filtre temporel, filtre catégories WoS). Seule
+l'étape 4 relève effectivement des contraintes ASReview à l'import.
+
+Reformulation suggérée pour le rapport de screening :
+
+> Sur les 3 715 articles issus de la requête WoS initiale, 702 ont été
+> exclus à différentes étapes de préparation du corpus :
+> dédoublonnage par DOI lors de la fusion des 8 exports
+> (n = X), filtre temporel limitant le corpus aux publications depuis
+> 2010 (n = Y), filtre par catégories Web of Science (n = Z),
+> et exclusion par ASReview à l'import pour métadonnées
+> manquantes (n = W). Le corpus effectif soumis au screening dans
+> ASReview LAB v2 compte ainsi 3 013 articles.
+
+Les valeurs de X, Y, Z et W sont produites par les chunks de la section
+précédente et peuvent être insérées directement à partir des objets
+`duplicates_excluded`, `pre_2010_excluded`, `wrong_category_excluded` et
+`asreview_excluded`.
+

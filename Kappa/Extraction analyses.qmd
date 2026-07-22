@@ -1,24 +1,23 @@
 ---
 title: "Extraction analyses"
 author: "Théophile L. Mouton"
-date: "January 22, 2026"
+date: today
 format:
   html:
-    toc: true
-    toc-location: right
-    css: custom.css
-    output-file: "Extraction analyses.html"
     self-contained: true
-    code-fold: true
-    code-tools: true
+    css: Quarto_template/custom.css
+    include-before-body: Quarto_template/header.html
+    include-after-body: Quarto_template/footer.html
+    theme: none
+    toc: true
+    toc-depth: 3
 editor: visual
 execute:
-  warning: false
   message: false
-  echo: true
+  warning: false
 ---
 
-## Create compiled dataset 
+## Create compiled dataset
 
 ```{r}
 # Load packages
@@ -125,7 +124,7 @@ Spatial_Scope = coalesce(Spatial_Scope, Geographic_Scope),
 write_csv(bridges_final, here("BRIDGES_compiled_103articles_clean.csv"))
 ```
 
-# First descriptive charts 
+# First descriptive charts
 
 ```{r}
 library(ggplot2)
@@ -305,7 +304,7 @@ bridges_final %>%
   theme(panel.grid.major.y = element_blank())
 ```
 
-# First maps 
+# First maps
 
 ```{r}
 # Clean and harmonize Ocean_Basin
