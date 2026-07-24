@@ -34,14 +34,15 @@ The five numbered folders follow the order of the review pipeline.
 
 | Path | Contents |
 |---|---|
-| `queries_260126/` | Web of Science queries, first iteration (26 Jan 2026) |
-| `queries_130226/` | Web of Science queries, second iteration (13 Feb 2026), plus calibration samples |
-| `corpus/` | Corpus exports, audit trail, excluded-record list, DOI list for Zotero |
-| `openalexR.qmd`, `openalexR.R` | Exploratory search via the OpenAlex API |
-| `wos_queries.qmd` | Documentation of the query construction |
+| `queries_130226/` | Web of Science queries (13 Feb 2026), plus calibration samples |
+| `corpus/` | Corpus exports, audit trail, excluded-record list |
+| `wos_queries.qmd` | Documentation of the query construction and corpus filtering |
 
 `corpus/BRIDGES_full_audit_trail.xlsx` records how the corpus was assembled and
 filtered. `corpus/BRIDGES_asreview_3686.csv` is the export fed into ASReview.
+
+An earlier search strategy based on the OpenAlex API was explored and set aside
+in favour of Web of Science; those files are in `archive/`.
 
 ### `02_screening/` - Title and abstract screening
 
@@ -52,7 +53,7 @@ filtered. `corpus/BRIDGES_asreview_3686.csv` is the export fed into ASReview.
 | `outputs/` | Screening results (2,481 records), Rayyan export, pre-filled article list |
 
 The calibration exercise supports the inter-rater agreement analysis in
-`05_analysis/kappa.R` (Fleiss and Cohen kappas).
+`05_analysis/screening_analyses.qmd` (Fleiss and Cohen kappas).
 
 ### `03_fulltext/` - Full-text retrieval
 
@@ -91,9 +92,7 @@ The analysis compares the two.
 | Path | Contents |
 |---|---|
 | `extraction_analyses.qmd` | Main analysis: model typology, geographic distribution, capability radars, heatmap, PCA ordination, diversity accumulation |
-| `screening_analyses.qmd` | Screening statistics |
-| `kappa.R` | Inter-rater agreement (Fleiss, Cohen) |
-| `harmonisation_modeles.R` | Model name harmonisation |
+| `screening_analyses.qmd` | Screening statistics and inter-rater agreement (Fleiss, Cohen) |
 | `_template/` | Quarto theme (CSS, header, footer) |
 
 Rendered HTML sits alongside each `.qmd`.
@@ -102,9 +101,9 @@ Rendered HTML sits alongside each `.qmd`.
 
 | Path | Contents |
 |---|---|
-| `docs/` | Screening criteria, model guide, feasibility note, workload estimate, paper outline |
+| `docs/` | Screening criteria, model guide, feasibility note, workload estimate, paper outline, user guide |
 | `outputs/figures/` | Figures for the manuscript, including the PRISMA diagram |
-| `archive/` | Superseded template versions, early extraction batches, earlier drafts |
+| `archive/` | Superseded template versions, early extraction batches, earlier drafts, the OpenAlex exploration and the first query iteration |
 
 ---
 
@@ -117,23 +116,27 @@ pip install pandas requests openpyxl anthropic pymupdf
 ```
 
 **R** 4.2 or later, with Quarto. Packages: `tidyverse`, `here`, `readxl`,
-`ggplot2`, `sf`, `rnaturalearth`, `vegan`, `ggrepel`, `forcats`, `irr`.
+`ggplot2`, `sf`, `rnaturalearth`, `vegan`, `ggrepel`, `forcats`, `irr`,
+`bibliometrix`, `writexl`.
 
 **API key.** The extraction scripts require an Anthropic API key in the
-`ANTHROPIC_API_KEY` environment variable.
+`ANTHROPIC_API_KEY` environment variable. `unpaywall_check.py` requires an
+email address in `UNPAYWALL_EMAIL`.
 
 ---
 
 ## Known limitations
 
-The scripts use relative paths and expect to be run from the directory holding
-their input files. See the user guide for the working directory each one needs.
-
-The Quarto analysis file still refers to the pre-reorganisation folder layout in
-its `here()` calls; these paths need updating.
+The Python scripts use relative paths and expect to be run from a directory
+holding their input files. See the user guide for the working directory each
+one needs.
 
 `extraction_claude.py` truncates article text at 60,000 characters, so material
 in the closing sections of very long papers may not reach the extraction step.
+
+The PRISMA diagram in `outputs/figures/` was generated during the OpenAlex
+exploration and reports figures from that search, not from the Web of Science
+corpus used for the review.
 
 Extraction output is unvalidated (see *Status of the data* above).
 
