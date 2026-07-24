@@ -119,11 +119,6 @@ pip install pandas requests openpyxl anthropic pymupdf
 **R** 4.2 or later, with Quarto. Packages: `tidyverse`, `here`, `readxl`,
 `ggplot2`, `sf`, `rnaturalearth`, `vegan`, `ggrepel`, `forcats`, `irr`.
 
-**External data.** The Global Oceans and Seas shapefile (GOaS v1) is required
-for the maps but is too large for GitHub. Download it from
-[marineregions.org](https://www.marineregions.org/downloads.php) and place the
-unzipped `GOaS_v1_20211214/` folder at the repository root.
-
 **API key.** The extraction scripts require an Anthropic API key in the
 `ANTHROPIC_API_KEY` environment variable.
 
