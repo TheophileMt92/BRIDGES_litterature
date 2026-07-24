@@ -26,6 +26,9 @@ PDFDIR = "PDF"
 OUTPUT = "BRIDGES_a_recuperer_manuellement.xlsx"
 FNAME_COL = "Nom de fichier"
 
+if not os.path.isdir(PDFDIR):
+    print(f"Attention : dossier {PDFDIR}/ introuvable, tous les articles seront listés comme manquants.")
+
 df = pd.read_excel(INPUT)
 present = set(os.listdir(PDFDIR)) if os.path.isdir(PDFDIR) else set()
 
