@@ -21,17 +21,22 @@ UTILISATION
 -----------
     python unpaywall_check.py
 
-Avant de lancer, renseigne ton email ci-dessous (EMAIL = ...). Unpaywall
-l'exige comme simple identifiant d'usage de l'API ; il n'est pas partagé.
+Avant de lancer, définis ton email dans la variable d'environnement
+UNPAYWALL_EMAIL. Unpaywall l'exige comme identifiant d'usage de l'API.
+
+    export UNPAYWALL_EMAIL="ton.email@exemple.fr"
 """
 
 import pandas as pd
 import requests
 import time
+import os
 
 # --- À PERSONNALISER ---
-EMAIL = "theophile.mouton92@gmail.com"          # mets ton vrai email ici
-INPUT  = "BRIDGES_pdf_a_recuperer.xlsx"   # ou le fichier relevant d'origine
+EMAIL = os.environ.get("UNPAYWALL_EMAIL", "")
+if not EMAIL:
+    raise SystemExit("Définis UNPAYWALL_EMAIL avant de lancer : export UNPAYWALL_EMAIL='ton.email@exemple.fr'")
+INPUT  = "BRIDGES_pdf_a_recuperer.xlsx"   # dans 03_fulltext/tracking/
 OUTPUT = "BRIDGES_pdf_a_recuperer_unpaywall.xlsx"
 DOI_COLUMN = "DOI"
 # -----------------------
