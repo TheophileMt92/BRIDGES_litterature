@@ -146,5 +146,5 @@ Extraction output is unvalidated (see *Status of the data* above).
 
 ## Contact
 
-Théophile L. Mouton — work carried out under IRD purchase order 4500288125,
+Théophile L. Mouton - work carried out under IRD purchase order 4500288125,
 BRIDGES-Avatar project, January–June 2026.
