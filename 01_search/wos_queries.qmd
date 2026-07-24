@@ -6,7 +6,10 @@ format:
   html:
     toc: true
     toc-location: right
-    css: custom.css
+    css: ../05_analysis/_template/custom.css
+    include-before-body: ../05_analysis/_template/header.html
+    include-after-body: ../05_analysis/_template/footer.html
+    theme: none
     output-file: "WoS_queries.html"
     self-contained: true
     code-fold: true
@@ -41,7 +44,7 @@ Results: 3,715 articles.
 wos_files <- paste0("WoS_query_", 1:8, ".txt")
 
 wos_list <- lapply(wos_files, function(f) {
-  convert2df(here::here("WoS queries", "WoS_query_130226", f), 
+  convert2df(here::here("01_search", "queries_130226", f), 
              dbsource = "wos", format = "plaintext")
 })
 
@@ -72,17 +75,17 @@ sample_100 |>
     title = TI, abstract = AB, authors = AU,
     year = PY, journal = SO, doi = DI, keywords = DE
   ) |>
-  write_csv(here::here("WoS queries", "WoS_query_130226", "BRIDGES_sample_100.csv"))
+  write_csv(here::here("01_search", "queries_130226", "BRIDGES_sample_100.csv"))
 
 sample_33 |>
   transmute(
     title = TI, abstract = AB, authors = AU,
     year = PY, journal = SO, doi = DI, keywords = DE
   ) |>
-  write_csv(here::here("WoS queries", "WoS_query_130226", "BRIDGES_sample_33.csv"))
+  write_csv(here::here("01_search", "queries_130226", "BRIDGES_sample_33.csv"))
 
 # Charger les 33 déjà screenés
-sample_33 <- readr::read_csv(here::here("WoS queries", "WoS_query_130226", "BRIDGES_sample_33.csv"))
+sample_33 <- readr::read_csv(here::here("01_search", "queries_130226", "BRIDGES_sample_33.csv"))
 
 # Exclure les 33 du sample_100 via le DOI
 sample_67 <- sample_100 |>
@@ -96,7 +99,7 @@ sample_67 |>
     title = TI, abstract = AB, authors = AU,
     year = PY, journal = SO, doi = DI, keywords = DE
   ) |>
-  write_csv(here::here("WoS queries", "WoS_query_130226", "BRIDGES_sample_67.csv"))
+  write_csv(here::here("01_search", "queries_130226", "BRIDGES_sample_67.csv"))
 ```
 
 ## Filter queries (Year, Citations)
@@ -264,7 +267,7 @@ L'analyse de la distribution géographique des auteurs révèle que le filtre de
 Pour corriger ce biais structurel, nous appliquons des seuils de citations différenciés selon la composition géographique des auteurs :
 
 | Catégorie                        | Critères d'inclusion                     |
-|-------------------------|-----------------------------------------------|
+|-------------------------|----------------------------------------------|
 | **Nord uniquement**              | ≥30 citations, ou ≥5 si publié 2023-2025 |
 | **Minorité Sud (collaboration)** | ≥30 citations, ou ≥5 si publié 2023-2025 |
 | **Majorité Sud**                 | ≥10 citations, ou ≥2 si publié 2023-2025 |
@@ -350,8 +353,7 @@ all_wos |>
     notes    = paste0("Citations: ", TC, " | WC: ", WC)
   ) |>
   write_csv(
-    here::here("WoS queries", "WoS_query_130226",
-               "BRIDGES_asreview_3686.csv")
+    here::here("01_search", "corpus", "BRIDGES_asreview_3686.csv")
   )
 
 cat("Exporté :", nrow(all_wos), "articles\n")
@@ -397,7 +399,7 @@ final_filtered |>
     keywords = DE,
     notes = paste("Citations:", TC, "| Category:", category)
   ) |> 
-  write_csv(here::here("WoS queries", "WoS_query_130226", "BRIDGES_asreview.csv"))
+  write_csv(here::here("01_search", "corpus", "BRIDGES_asreview.csv"))
 
 ```
 
@@ -431,13 +433,7 @@ final_filtered |>
 
 ## Traçabilité des exclusions du pipeline
 
-L'export final vers ASReview résulte d'une chaîne de filtres successifs
-appliqués au corpus brut issu des 8 fichiers WoS. Pour assurer la
-transparence méthodologique et documenter chaque exclusion, on reconstruit
-ici l'audit trail complet : chaque article exclu est tracé avec son étape
-et sa raison d'exclusion. Quatre étapes sont distinguées : (1) dédoublonnage
-sur DOI, (2) filtre temporel ≥ 2010, (3) filtre par catégories WoS, et
-(4) contraintes ASReview à l'import (abstract ou DOI manquants).
+L'export final vers ASReview résulte d'une chaîne de filtres successifs appliqués au corpus brut issu des 8 fichiers WoS. Pour assurer la transparence méthodologique et documenter chaque exclusion, on reconstruit ici l'audit trail complet : chaque article exclu est tracé avec son étape et sa raison d'exclusion. Quatre étapes sont distinguées : (1) dédoublonnage sur DOI, (2) filtre temporel ≥ 2010, (3) filtre par catégories WoS, et (4) contraintes ASReview à l'import (abstract ou DOI manquants).
 
 ```{r}
 #| label: traceability-setup
@@ -620,17 +616,15 @@ full_audit_trail <- bind_rows(
 # Export both files
 write_xlsx(
   all_excluded,
-  here::here("WoS queries", "WoS_query_130226",
-             "BRIDGES_excluded_articles.xlsx")
+  here::here("01_search", "corpus", "BRIDGES_excluded_articles.xlsx")
 )
 
 write_xlsx(
   full_audit_trail,
-  here::here("WoS queries", "WoS_query_130226",
-             "BRIDGES_full_audit_trail.xlsx")
+  here::here("01_search", "corpus", "BRIDGES_full_audit_trail.xlsx")
 )
 
-cat("Exports écrits dans WoS queries/WoS_query_130226/ :\n")
+cat("Exports écrits dans 01_search/corpus/ :\n")
 cat("  - BRIDGES_excluded_articles.xlsx :",
     nrow(all_excluded), "lignes\n")
 cat("  - BRIDGES_full_audit_trail.xlsx  :",
@@ -639,26 +633,10 @@ cat("  - BRIDGES_full_audit_trail.xlsx  :",
 
 ## Note méthodologique sur le rapport de screening
 
-La formulation actuelle dans `BRIDGES_screening_analyses.qmd` ("673 articles
-ont été exclus automatiquement par ASReview en raison de métadonnées
-manquantes, notamment les abstracts") est imprécise. La quasi-totalité des
-exclusions a lieu en amont d'ASReview, dans les étapes 1 à 3 du présent
-script (dédoublonnage DOI, filtre temporel, filtre catégories WoS). Seule
-l'étape 4 relève effectivement des contraintes ASReview à l'import.
+La formulation actuelle dans `BRIDGES_screening_analyses.qmd` ("673 articles ont été exclus automatiquement par ASReview en raison de métadonnées manquantes, notamment les abstracts") est imprécise. La quasi-totalité des exclusions a lieu en amont d'ASReview, dans les étapes 1 à 3 du présent script (dédoublonnage DOI, filtre temporel, filtre catégories WoS). Seule l'étape 4 relève effectivement des contraintes ASReview à l'import.
 
 Reformulation suggérée pour le rapport de screening :
 
-> Sur les 3 715 articles issus de la requête WoS initiale, 702 ont été
-> exclus à différentes étapes de préparation du corpus :
-> dédoublonnage par DOI lors de la fusion des 8 exports
-> (n = X), filtre temporel limitant le corpus aux publications depuis
-> 2010 (n = Y), filtre par catégories Web of Science (n = Z),
-> et exclusion par ASReview à l'import pour métadonnées
-> manquantes (n = W). Le corpus effectif soumis au screening dans
-> ASReview LAB v2 compte ainsi 3 013 articles.
+> Sur les 3 715 articles issus de la requête WoS initiale, 702 ont été exclus à différentes étapes de préparation du corpus : dédoublonnage par DOI lors de la fusion des 8 exports (n = X), filtre temporel limitant le corpus aux publications depuis 2010 (n = Y), filtre par catégories Web of Science (n = Z), et exclusion par ASReview à l'import pour métadonnées manquantes (n = W). Le corpus effectif soumis au screening dans ASReview LAB v2 compte ainsi 3 013 articles.
 
-Les valeurs de X, Y, Z et W sont produites par les chunks de la section
-précédente et peuvent être insérées directement à partir des objets
-`duplicates_excluded`, `pre_2010_excluded`, `wrong_category_excluded` et
-`asreview_excluded`.
-
+Les valeurs de X, Y, Z et W sont produites par les chunks de la section précédente et peuvent être insérées directement à partir des objets `duplicates_excluded`, `pre_2010_excluded`, `wrong_category_excluded` et `asreview_excluded`.
