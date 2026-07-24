@@ -113,6 +113,13 @@ records were presented, which the diversity accumulation analysis relies on.
 The current export is at `03_fulltext/asreview_relevant_BRIDGES.csv` — 816
 included records.
 
+**Reopening the project.** The full ASReview project is archived at
+`02_screening/asreview/BRIDGES_asreview_project_1001screened_20260622.asreview`.
+Importing it into ASReview LAB restores the complete screening state: every
+decision with its timestamp, the trained model, and the record ordering. This is
+the authoritative record of the screening stage — the CSV export in
+`03_fulltext/` contains only the included records, not the exclusions.
+
 **Calibration.** Before full screening, four screeners independently coded
 samples of 33, 67 and 100 records to establish agreement. Individual scores are
 in `02_screening/calibration/Scores from individual authors/`, consensus
