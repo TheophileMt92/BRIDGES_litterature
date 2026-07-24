@@ -54,7 +54,7 @@ filtered. `corpus/BRIDGES_asreview_3686.csv` is the export fed into ASReview.
 The calibration exercise supports the inter-rater agreement analysis in
 `05_analysis/kappa.R` (Fleiss and Cohen kappas).
 
-### `03_fulltext/` — Full-text retrieval
+### `03_fulltext/` - Full-text retrieval
 
 | Path | Contents |
 |---|---|
