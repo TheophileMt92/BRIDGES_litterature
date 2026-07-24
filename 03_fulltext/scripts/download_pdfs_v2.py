@@ -32,7 +32,7 @@ import re
 from urllib.parse import urljoin
 
 # --- À PERSONNALISER si besoin ---
-INPUT  = "BRIDGES_pdf_a_recuperer_unpaywall.xlsx"
+INPUT  = "BRIDGES_pdf_a_recuperer_unpaywall.xlsx"   # produit par unpaywall_check.py
 OUTDIR = "PDF"
 SUIVI  = "BRIDGES_telechargement_suivi_v2.xlsx"
 PDF_URL_COL    = "oa_pdf_url"
