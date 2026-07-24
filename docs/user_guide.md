@@ -35,16 +35,40 @@ each script to absolute paths.
 pip install pandas requests openpyxl anthropic pymupdf
 ```
 
-### API key
+### Anthropic API access
 
-The two extraction scripts read `ANTHROPIC_API_KEY` from the environment:
+**Stage 4 cannot be run without a paid Anthropic API account.** Both extraction
+scripts (`extraction_claude.py`, `fiche_modeles_claude.py`) send text to the
+Anthropic API and will not run otherwise. Stages 1, 2, 3 and 5 have no such
+requirement.
+
+To set this up:
+
+1. Create an account at [console.anthropic.com](https://console.anthropic.com).
+   This is separate from a Claude.ai subscription: a Claude Pro plan does not
+   include API access, and API usage is billed independently.
+2. Add credit to the account. The API is prepaid.
+3. Generate a key under **API Keys**. It is shown once; store it somewhere safe.
+4. Make it available to the scripts:
 
 ```bash
-export ANTHROPIC_API_KEY="your-key-here"
+export ANTHROPIC_API_KEY="sk-ant-..."
 ```
 
-Add it to `~/.zshrc` or `~/.bashrc` to persist it. Never commit a key to the
-repository.
+Add that line to `~/.zshrc` or `~/.bashrc` to persist it across sessions. Never
+commit a key to the repository, and revoke it in the console if it is ever
+exposed.
+
+**Cost.** Extraction of the 207 articles cost a few euros in total, at roughly
+15,000 input tokens per article (the scripts truncate at 60,000 characters).
+Documenting the ~30 model frameworks cost under one euro. Both scripts print
+progress per item, so a run can be stopped if something looks wrong. Current
+rates are at
+[anthropic.com/pricing](https://www.anthropic.com/pricing).
+
+**Model version.** Both scripts specify `claude-sonnet-4-6`. Model names change
+over time; if a run fails with a model-not-found error, update the `MODEL`
+constant near the top of each script to a current model identifier.
 
 ### Email for Unpaywall
 
