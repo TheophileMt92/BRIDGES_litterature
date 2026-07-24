@@ -1,4 +1,4 @@
-# BRIDGES — Scoping review of socio-ecological modelling tools
+# BRIDGES - Scoping review of socio-ecological modelling tools
 
 Literature review of socio-ecological modelling tools for spatial management and
 decision support in marine and coastal systems, carried out for the BRIDGES-Avatar
@@ -30,7 +30,7 @@ retrieved and extracted.
 
 The five numbered folders follow the order of the review pipeline.
 
-### `01_search/` — Search strategy and corpus construction
+### `01_search/` - Search strategy and corpus construction
 
 | Path | Contents |
 |---|---|
@@ -43,7 +43,7 @@ The five numbered folders follow the order of the review pipeline.
 `corpus/BRIDGES_full_audit_trail.xlsx` records how the corpus was assembled and
 filtered. `corpus/BRIDGES_asreview_3686.csv` is the export fed into ASReview.
 
-### `02_screening/` — Title and abstract screening
+### `02_screening/` - Title and abstract screening
 
 | Path | Contents |
 |---|---|
@@ -68,7 +68,7 @@ The calibration exercise supports the inter-rater agreement analysis in
 publisher-copyrighted and are held on the Ifremer cloud. `tracking/` records
 what was retrieved and how.
 
-### `04_extraction/` — Data extraction
+### `04_extraction/` - Data extraction
 
 | Path | Contents |
 |---|---|
@@ -86,7 +86,7 @@ model was *used* in a given paper (`Util_*` fields, Yes/No). The model template
 records what a model *can* do in principle (`Cap_*` fields, Yes/Optional/No).
 The analysis compares the two.
 
-### `05_analysis/` — Analysis and reporting
+### `05_analysis/` - Analysis and reporting
 
 | Path | Contents |
 |---|---|
