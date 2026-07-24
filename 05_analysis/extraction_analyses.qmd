@@ -5,9 +5,9 @@ date: today
 format:
   html:
     self-contained: true
-    css: Quarto_template/custom.css
-    include-before-body: Quarto_template/header.html
-    include-after-body: Quarto_template/footer.html
+    css: _template/custom.css
+    include-before-body: _template/header.html
+    include-after-body: _template/footer.html
     theme: none
     toc: true
     toc-depth: 3
@@ -22,24 +22,12 @@ execute:
 ::: {.callout-important appearance="simple"}
 ## À propos de ces analyses
 
-Ce rapport présente des analyses **préliminaires et exploratoires** réalisées sur un
-sous-ensemble du corpus BRIDGES : les **207 articles** classés pertinents lors du tri
-des résumés et dont le texte intégral en accès libre a pu être récupéré
-automatiquement (sur les 816 articles retenus à ce stade).
+Ce rapport présente des analyses **préliminaires et exploratoires** réalisées sur un sous-ensemble du corpus BRIDGES : les **207 articles** classés pertinents lors du tri des résumés et dont le texte intégral en accès libre a pu être récupéré automatiquement (sur les 816 articles retenus à ce stade).
 
-Les données d'extraction (Fiche Articles et Fiche Modèles) ont été produites par
-**extraction assistée par IA** (modèle Claude Sonnet 4.6, via l'API Anthropic),
-puis structurées selon nos maquettes d'extraction (v17 et v8). **Ces données n'ont
-pas encore été validées manuellement.** Elles peuvent contenir des erreurs
-d'extraction, et les résultats présentés ici doivent être considérés comme un
-**aperçu méthodologique**, non comme des résultats définitifs.
+Les données d'extraction (Fiche Articles et Fiche Modèles) ont été produites par **extraction assistée par IA** (modèle Claude Sonnet 4.6, via l'API Anthropic), puis structurées selon nos maquettes d'extraction (v17 et v8). **Ces données n'ont pas encore été validées manuellement.** Elles peuvent contenir des erreurs d'extraction, et les résultats présentés ici doivent être considérés comme un **aperçu méthodologique**, non comme des résultats définitifs.
 
-L'objectif de ce rapport est double : (1) tester la faisabilité d'une extraction
-assistée par IA suivie d'une validation humaine, et (2) prototyper les visualisations
-prévues au calendrier (radars capacités vs utilisation, à venir : heatmap, clusters).
-La phase de validation des données précédera toute interprétation scientifique.
+L'objectif de ce rapport est double : (1) tester la faisabilité d'une extraction assistée par IA suivie d'une validation humaine, et (2) prototyper les visualisations prévues au calendrier (radars capacités vs utilisation, à venir : heatmap, clusters). La phase de validation des données précédera toute interprétation scientifique.
 :::
-
 
 ## Chargement et préparation des données
 
@@ -53,7 +41,7 @@ library(readr)
 library(ggplot2)
 
 # Fiche Articles : champs en lignes, articles en colonnes -> transposer
-chemin <- here("Full text articles", "extraction_articles_BRIDGES_REMPLIE.xlsx")
+chemin <- here("04_extraction", "outputs", "extraction_articles_BRIDGES_REMPLIE.xlsx")
 fa <- read_excel(chemin)
 
 cols_articles <- setdiff(names(fa), "Champ")
@@ -229,7 +217,7 @@ library(purrr)
 library(lubridate)
 
 # --- 1. Charger l'export ASReview (816 inclus, avec asreview_time et auteurs) ---
-chemin_asr <- here("Full text articles", "asreview_relevant_BRIDGES.csv")
+chemin_asr <- here("03_fulltext", "asreview_relevant_BRIDGES.csv")
 asr <- read_csv(chemin_asr, show_col_types = FALSE)
 
 # Ordre ASReview = ordre chronologique des décisions (asreview_time)
@@ -337,19 +325,9 @@ cat("Complétude estimée         :", round(100 * obs / chao, 1), "%\n")
 ```
 
 ::: {.callout-note appearance="simple"}
-**À retenir.** L'accumulation des frameworks de modélisation ralentit nettement
-après la capture rapide des paradigmes dominants (premiers rangs de pertinence
-ASReview). Sur ce sous-ensemble de 197 articles, 27 frameworks distincts sont
-identifiés, et l'estimateur Chao1 en estime environ 31,5 au total (erreur standard
-≈ 4,8), soit une complétude d'environ 86 %. Autrement dit, la revue aurait déjà
-capté la grande majorité de la diversité des approches, quelques frameworks
-supplémentaires restant attendus.
+**À retenir.** L'accumulation des frameworks de modélisation ralentit nettement après la capture rapide des paradigmes dominants (premiers rangs de pertinence ASReview). Sur ce sous-ensemble de 197 articles, 27 frameworks distincts sont identifiés, et l'estimateur Chao1 en estime environ 31,5 au total (erreur standard ≈ 4,8), soit une complétude d'environ 86 %. Autrement dit, la revue aurait déjà capté la grande majorité de la diversité des approches, quelques frameworks supplémentaires restant attendus.
 
-**Prudence.** La diversité n'est pas encore strictement saturée : de nouveaux
-frameworks apparaissent encore dans le dernier quart du sous-ensemble. Par ailleurs,
-ces 197 articles constituent un sous-ensemble contraint par la disponibilité en
-accès libre, et non l'ensemble du corpus. Cette analyse est donc indicative ;
-elle peut être reconduite sur un corpus plus large.
+**Prudence.** La diversité n'est pas encore strictement saturée : de nouveaux frameworks apparaissent encore dans le dernier quart du sous-ensemble. Par ailleurs, ces 197 articles constituent un sous-ensemble contraint par la disponibilité en accès libre, et non l'ensemble du corpus. Cette analyse est donc indicative ; elle peut être reconduite sur un corpus plus large.
 :::
 
 ## Distribution des modèles
@@ -514,18 +492,14 @@ ggplot() +
 ```
 
 ::: {.callout-note appearance="simple"}
-**À retenir.** Les modèles écosystémiques complets (Atlantis, EwE) couvrent un large
-éventail de capacités, tandis que les SDM se concentrent sur les dimensions
-biophysique et spatiale. Sur l'ensemble des modèles, la dimension **sociale** reste
-la moins mobilisée, ce qui suggère que la composante humaine des socio-écosystèmes
-marins demeure peu intégrée dans les outils de modélisation actuels. 
+**À retenir.** Les modèles écosystémiques complets (Atlantis, EwE) couvrent un large éventail de capacités, tandis que les SDM se concentrent sur les dimensions biophysique et spatiale. Sur l'ensemble des modèles, la dimension **sociale** reste la moins mobilisée, ce qui suggère que la composante humaine des socio-écosystèmes marins demeure peu intégrée dans les outils de modélisation actuels.
 :::
 
 ## Consolidation de la Fiche Modèles (consensus des capacités)
 
 ```{r}
 # Charger la Fiche Modèles (champs en lignes, modèles en colonnes)
-chemin_fm <- here("Full text articles", "fiche_modeles_BRIDGES_REMPLIE.xlsx")
+chemin_fm <- here("04_extraction", "outputs", "fiche_modeles_BRIDGES_REMPLIE.xlsx")
 fm <- read_excel(chemin_fm)
 
 cols_fm <- setdiff(names(fm), "Champ")
@@ -764,27 +738,15 @@ ggplot(heatmap_data, aes(x = capacite, y = modele_lab, fill = niveau)) +
 ```
 
 ::: {.callout-note appearance="simple"}
-**Rappel de prudence.** Données préliminaires, fiches non validées. Plusieurs modèles
-reposent sur une seule fiche (signalés par un astérisque), leur ligne est donc à confirmer.
+**Rappel de prudence.** Données préliminaires, fiches non validées. Plusieurs modèles reposent sur une seule fiche (signalés par un astérisque), leur ligne est donc à confirmer.
 
-**À retenir.** La plupart des modèles couvrent solidement les dimensions biologique,
-halieutique, spatiale et temporelle. À l'inverse, les dimensions sociale, de participation
-des acteurs et, dans une moindre mesure, économique sont rarement intégrées. La capacité
-de participation est quasiment absente, sauf pour les modèles qualitatifs, ce qui souligne
-le faible ancrage des approches participatives dans les outils de modélisation existants.
+**À retenir.** La plupart des modèles couvrent solidement les dimensions biologique, halieutique, spatiale et temporelle. À l'inverse, les dimensions sociale, de participation des acteurs et, dans une moindre mesure, économique sont rarement intégrées. La capacité de participation est quasiment absente, sauf pour les modèles qualitatifs, ce qui souligne le faible ancrage des approches participatives dans les outils de modélisation existants.
 :::
 
 ## Clusters / familles de modèles (ordination)
 
 ::: {.callout-note appearance="simple"}
-**Note méthodologique.** Cette ordination repose sur les onze capacités théoriques
-des modèles (`Cap_`), des variables ordinales à trois niveaux (Non, Optionnel, Oui)
-encodées numériquement (0 / 0,5 / 1). La PCA suppose en principe des variables
-quantitatives continues : traiter ces capacités ordinales comme numériques est une
-approximation acceptable pour une visualisation exploratoire, mais impose une
-équidistance entre niveaux qui reste conventionnelle. Cette ordination est donc
-indicative. Une version méthodologiquement plus rigoureuse (distance de Gower puis
-PCoA, ou analyse des correspondances multiples) est envisageable avant publication.
+**Note méthodologique.** Cette ordination repose sur les onze capacités théoriques des modèles (`Cap_`), des variables ordinales à trois niveaux (Non, Optionnel, Oui) encodées numériquement (0 / 0,5 / 1). La PCA suppose en principe des variables quantitatives continues : traiter ces capacités ordinales comme numériques est une approximation acceptable pour une visualisation exploratoire, mais impose une équidistance entre niveaux qui reste conventionnelle. Cette ordination est donc indicative. Une version méthodologiquement plus rigoureuse (distance de Gower puis PCoA, ou analyse des correspondances multiples) est envisageable avant publication.
 :::
 
 ```{r}
@@ -862,7 +824,6 @@ variance_table <- data.frame(
 head(variance_table, 5)   # les 5 premiers axes
 ```
 
-
 ```{r}
 ggplot(coords, aes(PC1, PC2_plot)) +
   geom_hline(yintercept = 0, color = "grey90", linewidth = 0.3) +
@@ -896,24 +857,15 @@ ggplot(coords, aes(PC1, PC2_plot)) +
 ```
 
 ::: {.callout-note appearance="simple"}
-**Lecture des familles** (regroupement sur le plan PCA, qui résume environ 50% de la
-variance des profils de capacités) :
+**Lecture des familles** (regroupement sur le plan PCA, qui résume environ 50% de la variance des profils de capacités) :
 
-- **Famille 1 (vert, à droite)** : modèles à dominante biophysique et environnementale,
-souvent spatialisés (SDM, DBEM, Earth System, GETM-ERGOM, SPRAT).
+-   **Famille 1 (vert, à droite)** : modèles à dominante biophysique et environnementale, souvent spatialisés (SDM, DBEM, Earth System, GETM-ERGOM, SPRAT).
 
-- **Famille 2 (orange, à gauche)** : modèles intégrant fortement les dimensions humaines
-(économique, sociale, flottilles). Modèles bioéconomiques et socio-économiques
-(modèle bioéconomique, FishRent, System dynamics, SEFES, POSEIDON, DISPLACE, Atlantis).
+-   **Famille 2 (orange, à gauche)** : modèles intégrant fortement les dimensions humaines (économique, sociale, flottilles). Modèles bioéconomiques et socio-économiques (modèle bioéconomique, FishRent, System dynamics, SEFES, POSEIDON, DISPLACE, Atlantis).
 
-- **Famille 3 (violet, centre)** : modèles écosystémiques et de dynamique des populations
-à dominante biologique et halieutique (EwE, OSMOSE, MICE, SMART, CORSET, Size-spectrum,
-dynamique de population, MEFISTO).
+-   **Famille 3 (violet, centre)** : modèles écosystémiques et de dynamique des populations à dominante biologique et halieutique (EwE, OSMOSE, MICE, SMART, CORSET, Size-spectrum, dynamique de population, MEFISTO).
 
-- **Famille 4 (Machine learning)** et **Famille 5 (modèle qualitatif / QNM)** : profils
-atypiques isolés. Le modèle qualitatif se distingue nettement comme le seul à intégrer
-la participation des acteurs.
+-   **Famille 4 (Machine learning)** et **Famille 5 (modèle qualitatif / QNM)** : profils atypiques isolés. Le modèle qualitatif se distingue nettement comme le seul à intégrer la participation des acteurs.
 
-*Familles définies sur les deux axes affichés (50% de la variance) ; données préliminaires,
-fiches non validées. Les regroupements sont indicatifs. La visualisation place Machine learning loin des SDM, ce qui contredit l'attendu et révèle une fiche à corriger.*
+*Familles définies sur les deux axes affichés (50% de la variance) ; données préliminaires, fiches non validées. Les regroupements sont indicatifs. La visualisation place Machine learning loin des SDM, ce qui contredit l'attendu et révèle une fiche à corriger.*
 :::
