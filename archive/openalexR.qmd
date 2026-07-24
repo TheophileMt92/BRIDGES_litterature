@@ -6,7 +6,10 @@ format:
   html:
     toc: true
     toc-location: right
-    css: custom.css
+    css: ../05_analysis/_template/custom.css
+    include-before-body: ../05_analysis/_template/header.html
+    include-after-body: ../05_analysis/_template/footer.html
+    theme: none
     output-file: "openalexR.html"
     self-contained: true
     code-fold: true
@@ -19,9 +22,11 @@ execute:
 ---
 
 # Literature search for scoping review - BRIDGES project
+
 # Using OpenAlex via openalexR
 
-## Load packages and setup 
+## Load packages and setup
+
 ```{r}
 # Load packages --------------------------------------------------------------
 library(openalexR)
@@ -38,6 +43,7 @@ options(openalexR.mailto = "theophile.mouton92@gmail.com")  # Replace with your 
 ```
 
 ## Query 1: Conceptual approach (broad)
+
 ### Models/tools + Spatial + Domain + Application
 
 ```{r}
@@ -246,7 +252,7 @@ ggplot(query3_cumulative, aes(x = publication_year, y = cumulative)) +
   theme_minimal()
 ```
 
-## Combine all three approaches 
+## Combine all three approaches
 
 ```{r}
 # Add source identifier to each query
@@ -308,7 +314,7 @@ all_results_unique |>
   mutate(pct = round(100 * n / sum(n), 1))
 ```
 
-## Quality filter 
+## Quality filter
 
 ```{r}
 # Keep only well-cited papers (quality filter)
@@ -400,15 +406,17 @@ export_df <- final_set |>
     search_term
   )
 
-write_xlsx(export_df, "bridges_scoping_review_1174_papers.xlsx")
+write_xlsx(export_df, here::here("01_search", "corpus", "bridges_scoping_review_1174_papers.xlsx"))
 cat("Exported to: bridges_scoping_review_1174_papers.xlsx\n")
+
+writeLines(dois, here::here("01_search", "corpus", "dois_for_zotero.txt"))
 
 # Also export DOIs for Zotero import
 dois <- final_set |> 
   filter(!is.na(doi)) |> 
   pull(doi)
 
-writeLines(dois, "dois_for_zotero.txt")
+writeLines(dois, here::here("01_search", "corpus", "dois_for_zotero.txt"))
 cat("DOI list exported to: dois_for_zotero.txt (", length(dois), "DOIs)\n")
 
 ```
@@ -533,6 +541,7 @@ print(excluded_south, n = 30)
 We conducted a systematic literature search using the OpenAlex database via the `openalexR` package in R. OpenAlex is an open-access bibliographic database containing over 200 million scholarly works, comparable in coverage to Web of Science and Scopus.
 
 OpenAlex employs a relevance-based search algorithm that matches natural language queries against paper titles and abstracts. Three complementary search strategies were used: (1) a conceptual search targeting spatial models for marine and terrestrial management, (2) searches for specific model types (e.g., agent-based models, Bayesian networks, end-to-end ecosystem models), and (3) searches for named modeling tools (e.g., Marxan, InVEST, ATLANTIS, Ecopath with Ecosim):
+
 ```{r}
 #| label: tbl-queries
 #| tbl-cap: "Search queries used in the literature review"
@@ -548,6 +557,7 @@ knitr::kable(query_table)
 ```
 
 ### Selection process
+
 ```{r}
 #| label: tbl-selection
 #| tbl-cap: "Paper selection process"
@@ -567,11 +577,12 @@ knitr::kable(selection_table)
 
 To ensure a manageable corpus of high-quality and relevant papers, we applied the following filters:
 
-1. **Temporal scope**: Publications from 2010 onwards, capturing the main growth period of spatial decision-support modeling (96% of the literature)
+1.  **Temporal scope**: Publications from 2010 onwards, capturing the main growth period of spatial decision-support modeling (96% of the literature)
 
-2. **Quality filter**: Papers with ≥50 citations, ensuring inclusion of influential and well-established work
+2.  **Quality filter**: Papers with ≥50 citations, ensuring inclusion of influential and well-established work
 
-3. **Recency exception**: Papers from 2023–2025 with ≥5 citations, to capture emerging tools and methods that have not yet had time to accumulate citations
+3.  **Recency exception**: Papers from 2023--2025 with ≥5 citations, to capture emerging tools and methods that have not yet had time to accumulate citations
+
 ```{r}
 #| label: tbl-final
 #| tbl-cap: "Composition of final dataset"
@@ -587,6 +598,7 @@ knitr::kable(final_composition)
 ```
 
 ### Open access availability
+
 ```{r}
 #| label: tbl-oa
 #| tbl-cap: "Open access status of final dataset"
@@ -604,7 +616,7 @@ knitr::kable(oa_status)
 
 Approximately 60% of the selected papers are openly accessible, facilitating full-text retrieval for the review.
 
-## PRISMA flow diagram 
+## PRISMA flow diagram
 
 ```{r}
 #| label: fig-prisma
@@ -689,10 +701,9 @@ digraph prisma {
 prisma |> 
   export_svg() |> 
   charToRaw() |> 
-  rsvg_png("prisma_diagram.png", width = 800)
+  rsvg_png(here::here("outputs", "figures", "prisma_diagram.png"), width = 800)
 
-# Display the image
-knitr::include_graphics("prisma_diagram.png")
+knitr::include_graphics(here::here("outputs", "figures", "prisma_diagram.png"))
 ```
 
 ```{r}
