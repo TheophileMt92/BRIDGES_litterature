@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Théophile L. Mouton">
-<meta name="dcterms.date" content="2026-04-02">
+<meta name="dcterms.date" content="2026-07-24">
 
 <title>BRIDGES - Screening analyses</title>
 <style>
@@ -886,7 +886,7 @@ h1 { font-size: 1.8rem; }
 <h1 class="title">BRIDGES - Screening analyses</h1>
 <p class="author">Théophile L. Mouton</p>
 
-<p class="date">2026-04-02</p>
+<p class="date">2026-07-24</p>
 </header>
 
 <nav id="TOC" role="doc-toc">
@@ -910,72 +910,69 @@ h1 { font-size: 1.8rem; }
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Import</span></span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>batch1 <span class="ot">&lt;-</span> <span class="fu">read_excel</span>(</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">here</span>(<span class="st">&quot;Screening exercice&quot;</span>, <span class="st">&quot;Consensus scoring&quot;</span>,</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">here</span>(<span class="st">&quot;02_screening&quot;</span>, <span class="st">&quot;calibration&quot;</span>, <span class="st">&quot;Consensus scoring&quot;</span>,</span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>       <span class="st">&quot;BRIDGES_sample_33_consolidated_4 authors_consensus.xlsx&quot;</span>),</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">sheet =</span> <span class="dv">1</span></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>batch2 <span class="ot">&lt;-</span> <span class="fu">read_excel</span>(</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">here</span>(<span class="st">&quot;Screening exercice&quot;</span>, <span class="st">&quot;Consensus scoring&quot;</span>,</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>       <span class="st">&quot;BRIDGES_sample_67_consolidated_4 authors_concensus.xlsx&quot;</span>),</span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">sheet =</span> <span class="dv">1</span></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>batch3 <span class="ot">&lt;-</span> <span class="fu">read_excel</span>(</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">here</span>(<span class="st">&quot;Screening exercice&quot;</span>, <span class="st">&quot;Consensus scoring&quot;</span>,</span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>       <span class="st">&quot;BRIDGES_sample_100_consolidated_4 authors_consensus.xlsx&quot;</span>),</span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">sheet =</span> <span class="dv">1</span></span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="st">&quot;Consensus&quot;</span> <span class="sc">%in%</span> <span class="fu">names</span>(batch1))</span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="st">&quot;Consensus&quot;</span> <span class="sc">%in%</span> <span class="fu">names</span>(batch2))</span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="st">&quot;Consensus&quot;</span> <span class="sc">%in%</span> <span class="fu">names</span>(batch3))</span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>binarize <span class="ot">&lt;-</span> <span class="cf">function</span>(x) {</span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">if_else</span>(<span class="fu">tolower</span>(<span class="fu">trimws</span>(x)) <span class="sc">%in%</span> <span class="fu">c</span>(</span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;include&quot;</span>, <span class="st">&quot;review/synthesis&quot;</span>, <span class="st">&quot;review/synthésis&quot;</span>,</span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;include or not a model&quot;</span>, <span class="st">&quot;je ne sais pas&quot;</span>, <span class="st">&quot;je ne suis pas sur&quot;</span></span>
-<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>  ), <span class="st">&quot;Include&quot;</span>, <span class="st">&quot;Exclude&quot;</span>)</span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a><span class="co"># Combiner les décisions consensus des 3 batches</span></span>
-<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>all_consensus <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
-<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>  batch1 <span class="sc">|&gt;</span> <span class="fu">select</span>(doi, <span class="at">decision =</span> Consensus),</span>
-<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>  batch2 <span class="sc">|&gt;</span> <span class="fu">select</span>(doi, <span class="at">decision =</span> Consensus),</span>
-<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>  batch3 <span class="sc">|&gt;</span> <span class="fu">select</span>(doi, <span class="at">decision =</span> Consensus)</span>
-<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
-<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(decision)) <span class="sc">|&gt;</span></span>
-<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">decision_bin =</span> <span class="fu">binarize</span>(decision))</span>
-<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>n_screened <span class="ot">&lt;-</span> <span class="fu">nrow</span>(all_consensus)</span>
-<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>n_include  <span class="ot">&lt;-</span> <span class="fu">sum</span>(all_consensus<span class="sc">$</span>decision_bin <span class="sc">==</span> <span class="st">&quot;Include&quot;</span>)</span>
-<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a>n_exclude  <span class="ot">&lt;-</span> n_screened <span class="sc">-</span> n_include</span>
-<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>rate       <span class="ot">&lt;-</span> n_include <span class="sc">/</span> n_screened</span>
-<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>n_wos      <span class="ot">&lt;-</span> <span class="dv">3013</span>  <span class="co"># corpus effectif après import dans ASReview</span></span>
-<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a><span class="co"># IC 95%</span></span>
-<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>se      <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(rate <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> rate) <span class="sc">/</span> n_screened)</span>
-<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a>ic_bas  <span class="ot">&lt;-</span> rate <span class="sc">-</span> <span class="fl">1.96</span> <span class="sc">*</span> se</span>
-<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a>ic_haut <span class="ot">&lt;-</span> rate <span class="sc">+</span> <span class="fl">1.96</span> <span class="sc">*</span> se</span>
-<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(</span>
-<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a>  Métrique <span class="ot">=</span> <span class="fu">c</span>(</span>
-<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Articles screenés (consensus)&quot;</span>, <span class="st">&quot;Articles inclus&quot;</span>, <span class="st">&quot;Articles exclus&quot;</span>,</span>
-<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Taux d&#39;inclusion&quot;</span>, <span class="st">&quot;Corpus WoS total (requête)&quot;</span>,</span>
-<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Corpus effectif (ASReview)&quot;</span>, <span class="st">&quot;Exclus par ASReview (abstracts manquants)&quot;</span>,</span>
-<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Estimation centrale (full-corpus)&quot;</span>, <span class="st">&quot;IC 95% bas&quot;</span>, <span class="st">&quot;IC 95% haut&quot;</span>,</span>
-<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Full-text estimé (bas, 70%)&quot;</span>, <span class="st">&quot;Full-text estimé (haut, 80%)&quot;</span></span>
-<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a>  <span class="at">Valeur =</span> <span class="fu">c</span>(</span>
-<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a>    n_screened, n_include, n_exclude,</span>
-<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a>    <span class="fu">paste0</span>(<span class="fu">round</span>(rate <span class="sc">*</span> <span class="dv">100</span>, <span class="dv">1</span>), <span class="st">&quot;%&quot;</span>),</span>
-<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a>    <span class="dv">3686</span>, n_wos, <span class="dv">3686</span> <span class="sc">-</span> n_wos,</span>
-<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a>    <span class="fu">round</span>(n_wos <span class="sc">*</span> rate), <span class="fu">round</span>(n_wos <span class="sc">*</span> ic_bas), <span class="fu">round</span>(n_wos <span class="sc">*</span> ic_haut),</span>
-<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a>    <span class="fu">round</span>(n_wos <span class="sc">*</span> rate <span class="sc">*</span> <span class="fl">0.70</span>), <span class="fu">round</span>(n_wos <span class="sc">*</span> rate <span class="sc">*</span> <span class="fl">0.80</span>)</span>
-<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
-<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(</span>
-<span id="cb1-71"><a href="#cb1-71" aria-hidden="true" tabindex="-1"></a>    <span class="at">caption =</span> <span class="st">&quot;Estimation du volume d&#39;articles pour le screening full-text&quot;</span>,</span>
-<span id="cb1-72"><a href="#cb1-72" aria-hidden="true" tabindex="-1"></a>    <span class="at">align   =</span> <span class="fu">c</span>(<span class="st">&quot;l&quot;</span>, <span class="st">&quot;r&quot;</span>)</span>
-<span id="cb1-73"><a href="#cb1-73" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">sheet =</span> <span class="dv">1</span>)</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>batch2 <span class="ot">&lt;-</span> <span class="fu">read_excel</span>(</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">here</span>(<span class="st">&quot;02_screening&quot;</span>, <span class="st">&quot;calibration&quot;</span>, <span class="st">&quot;Consensus scoring&quot;</span>,</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>       <span class="st">&quot;BRIDGES_sample_67_consolidated_4 authors_concensus.xlsx&quot;</span>),</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">sheet =</span> <span class="dv">1</span>)</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>batch3 <span class="ot">&lt;-</span> <span class="fu">read_excel</span>(</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">here</span>(<span class="st">&quot;02_screening&quot;</span>, <span class="st">&quot;calibration&quot;</span>, <span class="st">&quot;Consensus scoring&quot;</span>,</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>       <span class="st">&quot;BRIDGES_sample_100_consolidated_4 authors_consensus.xlsx&quot;</span>),</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">sheet =</span> <span class="dv">1</span>)</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="st">&quot;Consensus&quot;</span> <span class="sc">%in%</span> <span class="fu">names</span>(batch1))</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="st">&quot;Consensus&quot;</span> <span class="sc">%in%</span> <span class="fu">names</span>(batch2))</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="st">&quot;Consensus&quot;</span> <span class="sc">%in%</span> <span class="fu">names</span>(batch3))</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>binarize <span class="ot">&lt;-</span> <span class="cf">function</span>(x) {</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">if_else</span>(<span class="fu">tolower</span>(<span class="fu">trimws</span>(x)) <span class="sc">%in%</span> <span class="fu">c</span>(</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;include&quot;</span>, <span class="st">&quot;review/synthesis&quot;</span>, <span class="st">&quot;review/synthésis&quot;</span>,</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;include or not a model&quot;</span>, <span class="st">&quot;je ne sais pas&quot;</span>, <span class="st">&quot;je ne suis pas sur&quot;</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>  ), <span class="st">&quot;Include&quot;</span>, <span class="st">&quot;Exclude&quot;</span>)</span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a><span class="co"># Combiner les décisions consensus des 3 batches</span></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>all_consensus <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>  batch1 <span class="sc">|&gt;</span> <span class="fu">select</span>(doi, <span class="at">decision =</span> Consensus),</span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>  batch2 <span class="sc">|&gt;</span> <span class="fu">select</span>(doi, <span class="at">decision =</span> Consensus),</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>  batch3 <span class="sc">|&gt;</span> <span class="fu">select</span>(doi, <span class="at">decision =</span> Consensus)</span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(decision)) <span class="sc">|&gt;</span></span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">decision_bin =</span> <span class="fu">binarize</span>(decision))</span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>n_screened <span class="ot">&lt;-</span> <span class="fu">nrow</span>(all_consensus)</span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>n_include  <span class="ot">&lt;-</span> <span class="fu">sum</span>(all_consensus<span class="sc">$</span>decision_bin <span class="sc">==</span> <span class="st">&quot;Include&quot;</span>)</span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>n_exclude  <span class="ot">&lt;-</span> n_screened <span class="sc">-</span> n_include</span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>rate       <span class="ot">&lt;-</span> n_include <span class="sc">/</span> n_screened</span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>n_wos      <span class="ot">&lt;-</span> <span class="dv">3013</span>  <span class="co"># corpus effectif après import dans ASReview</span></span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a><span class="co"># IC 95%</span></span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>se      <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(rate <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> rate) <span class="sc">/</span> n_screened)</span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>ic_bas  <span class="ot">&lt;-</span> rate <span class="sc">-</span> <span class="fl">1.96</span> <span class="sc">*</span> se</span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a>ic_haut <span class="ot">&lt;-</span> rate <span class="sc">+</span> <span class="fl">1.96</span> <span class="sc">*</span> se</span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(</span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a>  Métrique <span class="ot">=</span> <span class="fu">c</span>(</span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Articles screenés (consensus)&quot;</span>, <span class="st">&quot;Articles inclus&quot;</span>, <span class="st">&quot;Articles exclus&quot;</span>,</span>
+<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Taux d&#39;inclusion&quot;</span>, <span class="st">&quot;Corpus WoS total (requête)&quot;</span>,</span>
+<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Corpus effectif (ASReview)&quot;</span>, <span class="st">&quot;Exclus par ASReview (abstracts manquants)&quot;</span>,</span>
+<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Estimation centrale (full-corpus)&quot;</span>, <span class="st">&quot;IC 95% bas&quot;</span>, <span class="st">&quot;IC 95% haut&quot;</span>,</span>
+<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Full-text estimé (bas, 70%)&quot;</span>, <span class="st">&quot;Full-text estimé (haut, 80%)&quot;</span></span>
+<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a>  <span class="at">Valeur =</span> <span class="fu">c</span>(</span>
+<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a>    n_screened, n_include, n_exclude,</span>
+<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a>    <span class="fu">paste0</span>(<span class="fu">round</span>(rate <span class="sc">*</span> <span class="dv">100</span>, <span class="dv">1</span>), <span class="st">&quot;%&quot;</span>),</span>
+<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a>    <span class="dv">3686</span>, n_wos, <span class="dv">3686</span> <span class="sc">-</span> n_wos,</span>
+<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a>    <span class="fu">round</span>(n_wos <span class="sc">*</span> rate), <span class="fu">round</span>(n_wos <span class="sc">*</span> ic_bas), <span class="fu">round</span>(n_wos <span class="sc">*</span> ic_haut),</span>
+<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a>    <span class="fu">round</span>(n_wos <span class="sc">*</span> rate <span class="sc">*</span> <span class="fl">0.70</span>), <span class="fu">round</span>(n_wos <span class="sc">*</span> rate <span class="sc">*</span> <span class="fl">0.80</span>)</span>
+<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(</span>
+<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a>    <span class="at">caption =</span> <span class="st">&quot;Estimation du volume d&#39;articles pour le screening full-text&quot;</span>,</span>
+<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a>    <span class="at">align   =</span> <span class="fu">c</span>(<span class="st">&quot;l&quot;</span>, <span class="st">&quot;r&quot;</span>)</span>
+<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output-display">
 <table class="caption-top">

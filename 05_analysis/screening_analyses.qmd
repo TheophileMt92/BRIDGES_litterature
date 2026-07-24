@@ -5,9 +5,9 @@ date: today
 format:
   html:
     self-contained: true
-    css: Quarto_template/custom.css
-    include-before-body: Quarto_template/header.html
-    include-after-body: Quarto_template/footer.html
+    css: _template/custom.css
+    include-before-body: _template/header.html
+    include-after-body: _template/footer.html
     theme: none
     toc: true
     toc-depth: 3
@@ -19,16 +19,7 @@ execute:
 
 ## Taux d'inclusion et estimation du volume full-text
 
-À partir des décisions consensus établies sur les 100 articles screenés
-(batch 1 : 33 articles, batch 2 : 32 articles, batch 3 : 35 articles), nous
-estimons le taux d'inclusion attendu sur l'ensemble du corpus effectif de
-3 013 articles importés dans ASReview. Sur les 3 686 articles issus de la
-requête WoS, 673 ont été exclus automatiquement par ASReview en raison de
-métadonnées manquantes, notamment les abstracts. Cette estimation repose sur
-un tirage aléatoire représentatif (`set.seed(42)`) et permet d'anticiper la
-charge de travail pour la phase de lecture full-text. L'incertitude autour de
-l'estimation centrale est quantifiée par un intervalle de confiance à 95%
-sur la proportion observée.
+À partir des décisions consensus établies sur les 100 articles screenés (batch 1 : 33 articles, batch 2 : 32 articles, batch 3 : 35 articles), nous estimons le taux d'inclusion attendu sur l'ensemble du corpus effectif de 3 013 articles importés dans ASReview. Sur les 3 686 articles issus de la requête WoS, 673 ont été exclus automatiquement par ASReview en raison de métadonnées manquantes, notamment les abstracts. Cette estimation repose sur un tirage aléatoire représentatif (`set.seed(42)`) et permet d'anticiper la charge de travail pour la phase de lecture full-text. L'incertitude autour de l'estimation centrale est quantifiée par un intervalle de confiance à 95% sur la proportion observée.
 
 ```{r}
 #| code-fold: true
@@ -41,20 +32,17 @@ library(irr)
 
 # Import
 batch1 <- read_excel(
-  here("Screening exercice", "Consensus scoring",
+  here("02_screening", "calibration", "Consensus scoring",
        "BRIDGES_sample_33_consolidated_4 authors_consensus.xlsx"),
-  sheet = 1
-)
+  sheet = 1)
 batch2 <- read_excel(
-  here("Screening exercice", "Consensus scoring",
+  here("02_screening", "calibration", "Consensus scoring",
        "BRIDGES_sample_67_consolidated_4 authors_concensus.xlsx"),
-  sheet = 1
-)
+  sheet = 1)
 batch3 <- read_excel(
-  here("Screening exercice", "Consensus scoring",
+  here("02_screening", "calibration", "Consensus scoring",
        "BRIDGES_sample_100_consolidated_4 authors_consensus.xlsx"),
-  sheet = 1
-)
+  sheet = 1)
 
 stopifnot("Consensus" %in% names(batch1))
 stopifnot("Consensus" %in% names(batch2))
@@ -111,11 +99,8 @@ tibble(
 
 ## Évolution de l'accord inter-évaluateurs (Kappa)
 
-L'accord inter-évaluateurs est suivi à chaque batch de screening collectif.
-Une progression du Kappa au fil des batches indiquerait une convergence de
-l'équipe vers une interprétation commune des critères d'inclusion, suite aux
-discussions et clarifications successives (notamment la distinction modèle
-mécanistique vs statistique introduite lors de la réunion du 23 mars 2026).
+L'accord inter-évaluateurs est suivi à chaque batch de screening collectif. Une progression du Kappa au fil des batches indiquerait une convergence de l'équipe vers une interprétation commune des critères d'inclusion, suite aux discussions et clarifications successives (notamment la distinction modèle mécanistique vs statistique introduite lors de la réunion du 23 mars 2026).
+
 ```{r}
 #| code-fold: true
 #| code-summary: "Afficher le code"
@@ -181,14 +166,8 @@ Dans ce contexte, le Cohen moyen par paires est plus informatif.")
 
 ## Évaluation du pilote et de l'IA par rapport au Gold Standard
 
-Le consensus issu des discussions collectives constitue le Gold Standard.
-La sensibilité mesure le pourcentage d'articles pertinents correctement inclus,
-la spécificité le pourcentage d'articles non pertinents correctement exclus.
-L'objectif prioritaire est d'obtenir une haute sensibilité, afin de minimiser
-le risque de manquer des articles pertinents lors du screening complet.
-Le Batch 3, effectué après la clarification des critères du 23 mars 2026,
-montre une sensibilité de 100% pour le pilote et pour Claude — aucun article
-pertinent manqué.
+Le consensus issu des discussions collectives constitue le Gold Standard. La sensibilité mesure le pourcentage d'articles pertinents correctement inclus, la spécificité le pourcentage d'articles non pertinents correctement exclus. L'objectif prioritaire est d'obtenir une haute sensibilité, afin de minimiser le risque de manquer des articles pertinents lors du screening complet. Le Batch 3, effectué après la clarification des critères du 23 mars 2026, montre une sensibilité de 100% pour le pilote et pour Claude --- aucun article pertinent manqué.
+
 ```{r}
 #| code-fold: true
 #| code-summary: "Afficher le code"
