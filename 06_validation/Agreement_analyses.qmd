@@ -1,0 +1,30 @@
+---
+title: "BRIDGES - Agreement_analyses"
+author: "Théophile L. Mouton"
+date: today
+format:
+  html:
+    self-contained: true
+    css: ../05_analysis/_template/custom.css
+    include-before-body: ../05_analysis/_template/header.html
+    include-after-body: ../05_analysis/_template/footer.html
+    theme: none
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    code-tools: true
+editor: visual
+execute:
+  message: false
+  warning: false
+---
+
+```{r setup}
+library(tidyverse)   # manipulation et visualisation
+library(readxl)      # lecture des fichiers Excel
+library(here)        # chemins relatifs au projet
+library(knitr)       # tableaux formatés (kable)
+library(irr)         # kappa de Cohen (kappa2)
+```
+
+
