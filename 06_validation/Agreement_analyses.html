@@ -898,6 +898,7 @@ h1 { font-size: 1.8rem; }
   <li><a href="#accord-sur-les-champs-util_" id="toc-accord-sur-les-champs-util_">3. Accord sur les champs Util_</a></li>
   <li><a href="#direction-des-désaccords" id="toc-direction-des-désaccords">4. Direction des désaccords</a></li>
   <li><a href="#calibration-de-la-confiance-déclarée" id="toc-calibration-de-la-confiance-déclarée">5. Calibration de la confiance déclarée</a></li>
+  <li><a href="#conclusion-fiabilité-du-pipeline" id="toc-conclusion-fiabilité-du-pipeline">6. Conclusion : fiabilité du pipeline</a></li>
   </ul>
 </nav>
 <div class="cell">
@@ -1057,6 +1058,7 @@ h1 { font-size: 1.8rem; }
 </table>
 </div>
 </div>
+<p>Le tirage de 30 articles contient 5 non-articles (17 %), que le pipeline a néanmoins extraits en leur attribuant une confiance haute. Ce taux, appliqué aux 207 articles du corpus, suggère une trentaine de documents non éligibles traités comme des articles de recherche. Ce mode de défaillance ne peut pas apparaître dans les statistiques d’accord qui suivent, puisque les cellules concernées ont précisément été écartées du codage humain.</p>
 <h1 id="accord-sur-les-champs-util_">3. Accord sur les champs Util_</h1>
 <p>L’AC1 de Gwet est calculé manuellement (non fourni par <code>irr</code>) : Pe = 1/(K-1) * somme_k pi_k (1 - pi_k), où pi_k est la prévalence moyenne de la catégorie k sur les deux codeurs, puis AC1 = (Pa - Pe) / (1 - Pe). Le kappa de Cohen est reporté à titre de comparaison : la prévalence de “Oui” atteint 0,72, régime dans lequel le kappa s’effondre alors que l’accord observé reste élevé (paradoxe de prévalence). C’est la raison du recours à l’AC1.</p>
 <p>L’intervalle de confiance provient d’un bootstrap de grappes rééchantillonnant les 21 articles : les 8 cellules d’un même article ne sont pas indépendantes, et un IC calculé au niveau cellule serait trop étroit. Les valeurs par champ reposent sur n = 21 et sont indicatives, non inférentielles.</p>
@@ -1192,6 +1194,8 @@ h1 { font-size: 1.8rem; }
 </table>
 </div>
 </div>
+<p>L’accord observé atteint 85,1 % et l’AC1 0,750, soit un accord substantiel au sens des seuils usuels (0,61 à 0,80). La borne inférieure de l’IC bootstrap (0,629) reste au-dessus de 0,60 : la qualification tient à 95 %. L’écart entre l’AC1 (0,750) et le kappa de Cohen (0,636) illustre le paradoxe de prévalence et non une instabilité du calcul : avec 72 % de “Oui”, le kappa pénalise un accord qui reste élevé.</p>
+<p>La lecture par champ montre que cet accord global masque deux régimes. Quatre champs relevant de propriétés directement lisibles du modèle (biologique, pêche, physique, scénarios) atteignent 0,80 à 1,00. Les quatre autres, dont l’identification suppose une interprétation du contenu (social, économique, temporel, spatial), plafonnent entre 0,55 et 0,67. Sur n = 21, ces valeurs sont indicatives, mais l’ordre est cohérent avec la direction des désaccords analysée en section 4.</p>
 <h1 id="direction-des-désaccords">4. Direction des désaccords</h1>
 <p>Sous l’hypothèse d’absence de biais systématique, les désaccords se répartiraient également entre sur-codage (IA = Oui, humain = Non) et sous-codage. Le test exact est mené une seule fois, sur l’ensemble des champs <code>Util_</code> agrégés. Les tests par champ ne sont pas reportés : aucun ne survit à une correction pour tests multiples sur n = 21, et les champs concernés ayant été identifiés à la lecture de ce même tableau, un test qui leur serait spécifique serait circulaire. Les effectifs par champ sont donc descriptifs.</p>
 <div class="cell">
@@ -1332,6 +1336,8 @@ h1 { font-size: 1.8rem; }
 </table>
 </div>
 </div>
+<p>Les désaccords ne se répartissent pas symétriquement : 19 sur 25 correspondent à un sur-codage de l’IA (76 %, IC 95 % : 55 à 91 %, p = 0,015). Le pipeline déclare une dimension présente là où le codage humain ne la retrouve pas, plutôt que l’inverse. Le phénomène se concentre sur Util_social, Util_economique et Util_scenarios, où les 14 désaccords vont tous dans ce sens, tandis que Util_spatial et Util_physique présentent le profil inverse sur de faibles effectifs.</p>
+<p>La conséquence n’est pas une simple imprécision : un biais unidirectionnel se propage aux prévalences estimées sur le corpus, contrairement à une erreur symétrique qui se compenserait à l’agrégation. Sa magnitude est quantifiée en section 6.</p>
 <h1 id="calibration-de-la-confiance-déclarée">5. Calibration de la confiance déclarée</h1>
 <p>Le pipeline reporte une confiance par cellule. Sa distribution est dégénérée : 93,6 % des cellules sont déclarées en confiance haute et aucune cellule du sous-ensemble Util_ comparable n’est déclarée basse. Le tableau force l’affichage des bandes vides (<code>.drop = FALSE</code>) : une modalité absente et une modalité à zéro ne doivent pas se confondre visuellement.</p>
 <p>L’écart entre la part de confiance haute et l’exactitude observée mesure la surconfiance. Il est unidirectionnel dans les deux blocs. La confiance déclarée ne permet donc pas de définir un seuil de vérification manuelle et n’a pas été utilisée pour trier les extractions.</p>
@@ -1444,6 +1450,182 @@ h1 { font-size: 1.8rem; }
 <td style="text-align: right;">0.976</td>
 <td style="text-align: right;">0.851</td>
 <td style="text-align: right;">0.125</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>La confiance déclarée ne discrimine pas : 97,6 % des cellules Util_ comparables sont en confiance haute et aucune en confiance basse. Le contraste apparent entre 86,6 % et 25,0 % d’accord repose sur 4 cellules et ne permet aucune inférence. Un seuil placé sur cette variable orienterait 2 % des cellules vers une vérification manuelle tout en laissant 13,4 % d’erreurs dans la masse acceptée.</p>
+<p>La surconfiance est unidirectionnelle et plus marquée là où l’exactitude est la plus faible : 37 points d’écart sur le bloc à vocabulaire ouvert contre 12 sur le bloc Util_. Le pipeline est donc d’autant plus confiant qu’il se trompe, ce qui exclut son usage comme critère de tri.</p>
+<h1 id="conclusion-fiabilité-du-pipeline">6. Conclusion : fiabilité du pipeline</h1>
+<p>La question n’admet pas de réponse unique, les deux blocs de champs ne se comportant pas de la même manière. Cette section quantifie trois éléments nécessaires à la conclusion : le biais net de prévalence induit par le sur-codage, l’accord champ par champ dans le bloc à vocabulaire ouvert (le taux agrégé de 59,6 % mélangeant des champs à vocabulaire fermé et des champs en texte libre), et la projection des désaccords attendus sur les articles non validés.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Biais net de prévalence : (sur-codage - sous-codage) / n, en points</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>biais <span class="sc">|&gt;</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(champ, n,</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>            desaccords,</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>            <span class="at">biais_net_pp =</span> <span class="dv">100</span> <span class="sc">*</span> (ia_sur_code <span class="sc">-</span> ia_sous_code) <span class="sc">/</span> n) <span class="sc">|&gt;</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">desc</span>(biais_net_pp)) <span class="sc">|&gt;</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">1</span>,</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>        <span class="at">caption =</span> <span class="st">&quot;Biais net de prévalence induit par l&#39;IA, en points de pourcentage&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top">
+<caption>Biais net de prévalence induit par l’IA, en points de pourcentage</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">champ</th>
+<th style="text-align: right;">n</th>
+<th style="text-align: right;">desaccords</th>
+<th style="text-align: right;">biais_net_pp</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Util_social</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">28.6</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Util_economique</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">23.8</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Util_temporel</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">14.3</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Util_scenarios</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">14.3</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Util_biologique</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Util_peche</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Util_spatial</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">-9.5</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Util_physique</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">-9.5</td>
+</tr>
+</tbody>
+</table>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Bloc à vocabulaire ouvert, détail par champ</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>compare <span class="sc">|&gt;</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span>util, comparable) <span class="sc">|&gt;</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(champ) <span class="sc">|&gt;</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">n =</span> <span class="fu">n</span>(), <span class="at">n_accord =</span> <span class="fu">sum</span>(accord), <span class="at">.groups =</span> <span class="st">&quot;drop&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">taux_accord =</span> n_accord <span class="sc">/</span> n) <span class="sc">|&gt;</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(taux_accord) <span class="sc">|&gt;</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">3</span>, <span class="at">caption =</span> <span class="st">&quot;Accord par champ, bloc Factuel / Modèle&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top">
+<caption>Accord par champ, bloc Factuel / Modèle</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">champ</th>
+<th style="text-align: right;">n</th>
+<th style="text-align: right;">n_accord</th>
+<th style="text-align: right;">taux_accord</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Modele_utilise</td>
+<td style="text-align: right;">23</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Milieu</td>
+<td style="text-align: right;">24</td>
+<td style="text-align: right;">17</td>
+<td style="text-align: right;">0.708</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Bassin_oceanique</td>
+<td style="text-align: right;">22</td>
+<td style="text-align: right;">16</td>
+<td style="text-align: right;">0.727</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Type_article</td>
+<td style="text-align: right;">25</td>
+<td style="text-align: right;">23</td>
+<td style="text-align: right;">0.920</td>
+</tr>
+</tbody>
+</table>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Projection sur les 177 articles non validés, aux taux observés</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">articles_restants   =</span> <span class="dv">207</span> <span class="sc">-</span> <span class="dv">30</span>,</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">part_exploitables   =</span> <span class="dv">21</span> <span class="sc">/</span> <span class="dv">30</span>,</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">cellules_util       =</span> <span class="fu">round</span>((<span class="dv">207</span> <span class="sc">-</span> <span class="dv">30</span>) <span class="sc">*</span> (<span class="dv">21</span> <span class="sc">/</span> <span class="dv">30</span>) <span class="sc">*</span> <span class="dv">8</span>),</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">desaccords_attendus =</span> <span class="fu">round</span>(cellules_util <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> <span class="fl">0.851</span>)),</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">dont_sur_codage     =</span> <span class="fu">round</span>(desaccords_attendus <span class="sc">*</span> <span class="dv">19</span> <span class="sc">/</span> <span class="dv">25</span>),</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">non_articles_attendus =</span> <span class="fu">round</span>((<span class="dv">207</span> <span class="sc">-</span> <span class="dv">30</span>) <span class="sc">*</span> <span class="dv">5</span> <span class="sc">/</span> <span class="dv">30</span>)</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">&quot;Projection des erreurs sur la partie non validée du corpus&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top">
+<caption>Projection des erreurs sur la partie non validée du corpus</caption>
+<colgroup>
+<col style="width: 16%">
+<col style="width: 16%">
+<col style="width: 12%">
+<col style="width: 18%">
+<col style="width: 14%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: right;">articles_restants</th>
+<th style="text-align: right;">part_exploitables</th>
+<th style="text-align: right;">cellules_util</th>
+<th style="text-align: right;">desaccords_attendus</th>
+<th style="text-align: right;">dont_sur_codage</th>
+<th style="text-align: right;">non_articles_attendus</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">177</td>
+<td style="text-align: right;">0.7</td>
+<td style="text-align: right;">991</td>
+<td style="text-align: right;">148</td>
+<td style="text-align: right;">112</td>
+<td style="text-align: right;">30</td>
 </tr>
 </tbody>
 </table>

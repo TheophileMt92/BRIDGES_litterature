@@ -124,6 +124,13 @@ compare |>
   kable(caption = "Dénominateurs par bloc de champs")
 ```
 
+Le tirage de 30 articles contient 5 non-articles (17 %), que le pipeline a
+néanmoins extraits en leur attribuant une confiance haute. Ce taux, appliqué
+aux 207 articles du corpus, suggère une trentaine de documents non éligibles
+traités comme des articles de recherche. Ce mode de défaillance ne peut pas
+apparaître dans les statistiques d'accord qui suivent, puisque les cellules
+concernées ont précisément été écartées du codage humain.
+
 # 3. Accord sur les champs Util_
 
 L'AC1 de Gwet est calculé manuellement (non fourni par `irr`) :
@@ -174,6 +181,21 @@ u |>
   kable(digits = 3, caption = "Accord par champ Util_ (indicatif, n = 21)")
 ```
 
+L'accord observé atteint 85,1 % et l'AC1 0,750, soit un accord substantiel au
+sens des seuils usuels (0,61 à 0,80). La borne inférieure de l'IC bootstrap
+(0,629) reste au-dessus de 0,60 : la qualification tient à 95 %. L'écart entre
+l'AC1 (0,750) et le kappa de Cohen (0,636) illustre le paradoxe de prévalence
+et non une instabilité du calcul : avec 72 % de "Oui", le kappa pénalise un
+accord qui reste élevé.
+
+La lecture par champ montre que cet accord global masque deux régimes. Quatre
+champs relevant de propriétés directement lisibles du modèle (biologique,
+pêche, physique, scénarios) atteignent 0,80 à 1,00. Les quatre autres, dont
+l'identification suppose une interprétation du contenu (social, économique,
+temporel, spatial), plafonnent entre 0,55 et 0,67. Sur n = 21, ces valeurs
+sont indicatives, mais l'ordre est cohérent avec la direction des désaccords
+analysée en section 4.
+
 # 4. Direction des désaccords
 
 Sous l'hypothèse d'absence de biais systématique, les désaccords se
@@ -210,6 +232,19 @@ tibble(desaccords     = sum(biais$desaccords),
         caption = "Bilan directionnel, tous champs Util_ (test binomial exact)")
 ```
 
+Les désaccords ne se répartissent pas symétriquement : 19 sur 25 correspondent
+à un sur-codage de l'IA (76 %, IC 95 % : 55 à 91 %, p = 0,015). Le pipeline
+déclare une dimension présente là où le codage humain ne la retrouve pas,
+plutôt que l'inverse. Le phénomène se concentre sur Util_social,
+Util_economique et Util_scenarios, où les 14 désaccords vont tous dans ce
+sens, tandis que Util_spatial et Util_physique présentent le profil inverse
+sur de faibles effectifs.
+
+La conséquence n'est pas une simple imprécision : un biais unidirectionnel se
+propage aux prévalences estimées sur le corpus, contrairement à une erreur
+symétrique qui se compenserait à l'agrégation. Sa magnitude est quantifiée en
+section 6.
+
 # 5. Calibration de la confiance déclarée
 
 Le pipeline reporte une confiance par cellule. Sa distribution est dégénérée :
@@ -245,3 +280,55 @@ compare |>
   kable(digits = 3, caption = "Surconfiance déclarée par bloc")
 ```
 
+La confiance déclarée ne discrimine pas : 97,6 % des cellules Util_
+comparables sont en confiance haute et aucune en confiance basse. Le contraste
+apparent entre 86,6 % et 25,0 % d'accord repose sur 4 cellules et ne permet
+aucune inférence. Un seuil placé sur cette variable orienterait 2 % des
+cellules vers une vérification manuelle tout en laissant 13,4 % d'erreurs dans
+la masse acceptée.
+
+La surconfiance est unidirectionnelle et plus marquée là où l'exactitude est
+la plus faible : 37 points d'écart sur le bloc à vocabulaire ouvert contre 12
+sur le bloc Util_. Le pipeline est donc d'autant plus confiant qu'il se trompe,
+ce qui exclut son usage comme critère de tri.
+
+# 6. Conclusion : fiabilité du pipeline
+
+La question n'admet pas de réponse unique, les deux blocs de champs ne se
+comportant pas de la même manière. Cette section quantifie trois éléments
+nécessaires à la conclusion : le biais net de prévalence induit par le
+sur-codage, l'accord champ par champ dans le bloc à vocabulaire ouvert (le
+taux agrégé de 59,6 % mélangeant des champs à vocabulaire fermé et des champs
+en texte libre), et la projection des désaccords attendus sur les articles
+non validés.
+
+```{r conclusion}
+# 1. Biais net de prévalence : (sur-codage - sous-codage) / n, en points
+biais |>
+  transmute(champ, n,
+            desaccords,
+            biais_net_pp = 100 * (ia_sur_code - ia_sous_code) / n) |>
+  arrange(desc(biais_net_pp)) |>
+  kable(digits = 1,
+        caption = "Biais net de prévalence induit par l'IA, en points de pourcentage")
+
+# 2. Bloc à vocabulaire ouvert, détail par champ
+compare |>
+  filter(!util, comparable) |>
+  group_by(champ) |>
+  summarise(n = n(), n_accord = sum(accord), .groups = "drop") |>
+  mutate(taux_accord = n_accord / n) |>
+  arrange(taux_accord) |>
+  kable(digits = 3, caption = "Accord par champ, bloc Factuel / Modèle")
+
+# 3. Projection sur les 177 articles non validés, aux taux observés
+tibble(
+  articles_restants   = 207 - 30,
+  part_exploitables   = 21 / 30,
+  cellules_util       = round((207 - 30) * (21 / 30) * 8),
+  desaccords_attendus = round(cellules_util * (1 - 0.851)),
+  dont_sur_codage     = round(desaccords_attendus * 19 / 25),
+  non_articles_attendus = round((207 - 30) * 5 / 30)
+) |>
+  kable(caption = "Projection des erreurs sur la partie non validée du corpus")
+```
