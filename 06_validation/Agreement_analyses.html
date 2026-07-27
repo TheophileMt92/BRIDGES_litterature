@@ -889,7 +889,17 @@ h1 { font-size: 1.8rem; }
 <p class="date">2026-07-27</p>
 </header>
 
-
+<nav id="TOC" role="doc-toc">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#données-et-appariement" id="toc-données-et-appariement">1. Données et appariement</a></li>
+  <li><a href="#périmètre-de-lanalyse" id="toc-périmètre-de-lanalyse">2. Périmètre de l’analyse</a></li>
+  <li><a href="#accord-sur-les-champs-util_" id="toc-accord-sur-les-champs-util_">3. Accord sur les champs Util_</a></li>
+  <li><a href="#direction-des-désaccords" id="toc-direction-des-désaccords">4. Direction des désaccords</a></li>
+  <li><a href="#calibration-de-la-confiance-déclarée" id="toc-calibration-de-la-confiance-déclarée">5. Calibration de la confiance déclarée</a></li>
+  </ul>
+</nav>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
@@ -899,6 +909,545 @@ h1 { font-size: 1.8rem; }
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(knitr)       <span class="co"># tableaux formatés (kable)</span></span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(irr)         <span class="co"># kappa de Cohen (kappa2)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
+</div>
+<h1 id="données-et-appariement">1. Données et appariement</h1>
+<p>Le codage humain (onglet <code>Codage</code>, format long : une ligne par couple article x champ) est apparié à l’extraction IA (format transposé : champs en lignes, 207 articles en colonnes, chacun suivi de sa colonne <code>[confiance]</code>). La clé de jointure est le nom de fichier PDF, normalisé des deux côtés en NFC et en minuscules : les accents (Guénette, Grüss, Stäbler, Sánchez-jiménez) sont stockés en NFD sur macOS et en NFC via Excel, visuellement identiques mais inégaux pour R. Toute dérive de clé lève une erreur plutôt que de rétrécir silencieusement le dénominateur, ce qui gonflerait le taux d’accord. Les valeurs sont normalisées symétriquement (casse, espaces, ponctuation finale) avant comparaison : ces écarts de saisie ne sont pas des désaccords.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>chemin_codage     <span class="ot">&lt;-</span> <span class="fu">here</span>(<span class="st">&quot;06_validation&quot;</span>, <span class="st">&quot;BRIDGES_validation_feuille_codage.xlsx&quot;</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>chemin_extraction <span class="ot">&lt;-</span> <span class="fu">here</span>(<span class="st">&quot;04_extraction&quot;</span>, <span class="st">&quot;outputs&quot;</span>,</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>                          <span class="st">&quot;extraction_articles_BRIDGES_REMPLIE.xlsx&quot;</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>norm_txt <span class="ot">&lt;-</span> <span class="cf">function</span>(x) stringi<span class="sc">::</span><span class="fu">stri_trans_nfc</span>(x) <span class="sc">|&gt;</span> <span class="fu">str_squish</span>() <span class="sc">|&gt;</span> <span class="fu">str_to_lower</span>()</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>norm_cle <span class="ot">&lt;-</span> <span class="cf">function</span>(x) <span class="fu">norm_txt</span>(<span class="fu">str_remove</span>(x, <span class="fu">regex</span>(<span class="st">&quot;</span><span class="sc">\\</span><span class="st">.pdf$&quot;</span>, <span class="at">ignore_case =</span> <span class="cn">TRUE</span>)))</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co"># col_types = &quot;text&quot; : les colonnes lacunaires seraient sinon devinées en logical</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>lire <span class="ot">&lt;-</span> <span class="cf">function</span>(chemin, onglet) {</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">read_excel</span>(chemin, <span class="at">sheet =</span> onglet, <span class="at">col_types =</span> <span class="st">&quot;text&quot;</span>,</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>             <span class="at">na =</span> <span class="fu">c</span>(<span class="st">&quot;&quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>, <span class="st">&quot;na&quot;</span>, <span class="st">&quot;-&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="fu">across</span>(<span class="fu">everything</span>(), str_squish))</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>codage <span class="ot">&lt;-</span> <span class="fu">lire</span>(chemin_codage, <span class="st">&quot;Codage&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(<span class="at">article =</span> <span class="fu">norm_cle</span>(Article), <span class="at">champ =</span> Champ,</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>            <span class="at">humain =</span> <span class="fu">norm_txt</span>(Ta_valeur), <span class="at">commentaire =</span> Commentaire)</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>extraction <span class="ot">&lt;-</span> <span class="fu">lire</span>(chemin_extraction, <span class="st">&quot;Sheet1&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">champ =</span> Champ) <span class="sc">|&gt;</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="sc">-</span>champ, <span class="at">names_to =</span> <span class="st">&quot;colonne&quot;</span>, <span class="at">values_to =</span> <span class="st">&quot;valeur&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">cible   =</span> <span class="fu">if_else</span>(<span class="fu">str_detect</span>(colonne, <span class="fu">fixed</span>(<span class="st">&quot;[confiance]&quot;</span>)),</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>                           <span class="st">&quot;confiance&quot;</span>, <span class="st">&quot;ia&quot;</span>),</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>         <span class="at">article =</span> <span class="fu">norm_cle</span>(<span class="fu">str_remove</span>(colonne, <span class="fu">fixed</span>(<span class="st">&quot; [confiance]&quot;</span>)))) <span class="sc">|&gt;</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>colonne) <span class="sc">|&gt;</span></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(<span class="at">names_from =</span> cible, <span class="at">values_from =</span> valeur) <span class="sc">|&gt;</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="fu">across</span>(<span class="fu">c</span>(ia, confiance), norm_txt))</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a><span class="co"># Contrôles bloquants : clés, dimensions, vocabulaire fermé des champs Util_</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">all</span>(codage<span class="sc">$</span>article <span class="sc">%in%</span> extraction<span class="sc">$</span>article),</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>          <span class="fu">all</span>(codage<span class="sc">$</span>champ   <span class="sc">%in%</span> extraction<span class="sc">$</span>champ))</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>compare <span class="ot">&lt;-</span> codage <span class="sc">|&gt;</span></span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">inner_join</span>(extraction, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&quot;article&quot;</span>, <span class="st">&quot;champ&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">util       =</span> <span class="fu">str_starts</span>(champ, <span class="st">&quot;Util_&quot;</span>),</span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>         <span class="at">comparable =</span> <span class="sc">!</span><span class="fu">is.na</span>(humain) <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(ia),</span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>         <span class="at">accord     =</span> humain <span class="sc">==</span> ia)</span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">nrow</span>(compare) <span class="sc">==</span> <span class="dv">30</span> <span class="sc">*</span> <span class="dv">12</span>)</span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">all</span>(<span class="fu">na.omit</span>(<span class="fu">c</span>(compare<span class="sc">$</span>humain[compare<span class="sc">$</span>util],</span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>                        compare<span class="sc">$</span>ia[compare<span class="sc">$</span>util])) <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;oui&quot;</span>, <span class="st">&quot;non&quot;</span>)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<h1 id="périmètre-de-lanalyse">2. Périmètre de l’analyse</h1>
+<p>Sur les 30 articles tirés, 5 ne sont pas des articles de recherche (une rétractation, deux avis de correction, deux hors périmètre) et sont exclus intégralement. 4 revues conservent leurs champs factuels mais pas les champs <code>Util_</code>, qui portent sur les modèles appliqués et non sur ce qu’une revue discute (RÈGLE REVUE). Les cellules non codées sont donc des exclusions justifiées et non des données manquantes : le bloc <code>Util_</code> repose sur une grille complète de 21 articles x 8 champs.</p>
+<p>Les deux blocs de champs relèvent de régimes de mesure distincts, binaire fermé contre vocabulaire ouvert, et ne doivent jamais être agrégés en un taux unique.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>statut <span class="ot">&lt;-</span> compare <span class="sc">|&gt;</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(article) <span class="sc">|&gt;</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">vides =</span> <span class="fu">sum</span>(<span class="fu">is.na</span>(humain)),</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">vides_util =</span> <span class="fu">sum</span>(<span class="fu">is.na</span>(humain) <span class="sc">&amp;</span> util), <span class="at">.groups =</span> <span class="st">&quot;drop&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">statut =</span> <span class="fu">case_when</span>(</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    vides <span class="sc">==</span> <span class="dv">12</span>      <span class="sc">~</span> <span class="st">&quot;Exclu : non-article (rétractation, erratum, hors périmètre)&quot;</span>,</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    vides_util <span class="sc">==</span> <span class="dv">8</span>  <span class="sc">~</span> <span class="st">&quot;Revue : champs Util_ non applicables&quot;</span>,</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="cn">TRUE</span>             <span class="sc">~</span> <span class="st">&quot;Article de recherche, champs Util_ codés&quot;</span>))</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>statut <span class="sc">|&gt;</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">count</span>(statut, <span class="at">name =</span> <span class="st">&quot;n_articles&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">&quot;Statut des 30 articles de l&#39;échantillon de validation&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top">
+<caption>Statut des 30 articles de l’échantillon de validation</caption>
+<colgroup>
+<col style="width: 84%">
+<col style="width: 15%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">statut</th>
+<th style="text-align: right;">n_articles</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Article de recherche, champs Util_ codés</td>
+<td style="text-align: right;">21</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Exclu : non-article (rétractation, erratum, hors périmètre)</td>
+<td style="text-align: right;">5</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Revue : champs Util_ non applicables</td>
+<td style="text-align: right;">4</td>
+</tr>
+</tbody>
+</table>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>compare <span class="sc">|&gt;</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">bloc =</span> <span class="fu">if_else</span>(util, <span class="st">&quot;Util_ (binaire Oui/Non)&quot;</span>,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>                        <span class="st">&quot;Factuel / Modèle (vocabulaire ouvert)&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(bloc) <span class="sc">|&gt;</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">n_champs      =</span> <span class="fu">n_distinct</span>(champ),</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>            <span class="at">n_cellules    =</span> <span class="fu">n</span>(),</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>            <span class="at">n_comparables =</span> <span class="fu">sum</span>(comparable),</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>            <span class="at">n_articles    =</span> <span class="fu">n_distinct</span>(article[comparable]),</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>            <span class="at">.groups =</span> <span class="st">&quot;drop&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">&quot;Dénominateurs par bloc de champs&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top" style="width:100%;">
+<caption>Dénominateurs par bloc de champs</caption>
+<colgroup>
+<col style="width: 45%">
+<col style="width: 10%">
+<col style="width: 13%">
+<col style="width: 16%">
+<col style="width: 13%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">bloc</th>
+<th style="text-align: right;">n_champs</th>
+<th style="text-align: right;">n_cellules</th>
+<th style="text-align: right;">n_comparables</th>
+<th style="text-align: right;">n_articles</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Factuel / Modèle (vocabulaire ouvert)</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">120</td>
+<td style="text-align: right;">94</td>
+<td style="text-align: right;">25</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Util_ (binaire Oui/Non)</td>
+<td style="text-align: right;">8</td>
+<td style="text-align: right;">240</td>
+<td style="text-align: right;">168</td>
+<td style="text-align: right;">21</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h1 id="accord-sur-les-champs-util_">3. Accord sur les champs Util_</h1>
+<p>L’AC1 de Gwet est calculé manuellement (non fourni par <code>irr</code>) : Pe = 1/(K-1) * somme_k pi_k (1 - pi_k), où pi_k est la prévalence moyenne de la catégorie k sur les deux codeurs, puis AC1 = (Pa - Pe) / (1 - Pe). Le kappa de Cohen est reporté à titre de comparaison : la prévalence de “Oui” atteint 0,72, régime dans lequel le kappa s’effondre alors que l’accord observé reste élevé (paradoxe de prévalence). C’est la raison du recours à l’AC1.</p>
+<p>L’intervalle de confiance provient d’un bootstrap de grappes rééchantillonnant les 21 articles : les 8 cellules d’un même article ne sont pas indépendantes, et un IC calculé au niveau cellule serait trop étroit. Les valeurs par champ reposent sur n = 21 et sont indicatives, non inférentielles.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>ac1 <span class="ot">&lt;-</span> <span class="cf">function</span>(a, b, <span class="at">cat =</span> <span class="fu">c</span>(<span class="st">&quot;oui&quot;</span>, <span class="st">&quot;non&quot;</span>)) {</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  ok <span class="ot">&lt;-</span> <span class="sc">!</span><span class="fu">is.na</span>(a) <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(b); a <span class="ot">&lt;-</span> a[ok]; b <span class="ot">&lt;-</span> b[ok]</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="sc">!</span><span class="fu">length</span>(a)) <span class="fu">return</span>(<span class="fu">tibble</span>(<span class="at">n =</span> <span class="dv">0</span>L, <span class="at">pa =</span> <span class="cn">NA_real_</span>, <span class="at">pe =</span> <span class="cn">NA_real_</span>, <span class="at">ac1 =</span> <span class="cn">NA_real_</span>))</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  pa   <span class="ot">&lt;-</span> <span class="fu">mean</span>(a <span class="sc">==</span> b)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  pi_k <span class="ot">&lt;-</span> <span class="fu">map_dbl</span>(cat, <span class="sc">~</span> <span class="fu">mean</span>(<span class="fu">c</span>(a <span class="sc">==</span> .x, b <span class="sc">==</span> .x)))</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  pe   <span class="ot">&lt;-</span> <span class="fu">sum</span>(pi_k <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> pi_k)) <span class="sc">/</span> (<span class="fu">length</span>(cat) <span class="sc">-</span> <span class="dv">1</span>)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(<span class="at">n =</span> <span class="fu">length</span>(a), <span class="at">pa =</span> pa, <span class="at">pe =</span> pe, <span class="at">ac1 =</span> (pa <span class="sc">-</span> pe) <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">-</span> pe))</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>u <span class="ot">&lt;-</span> <span class="fu">filter</span>(compare, util, comparable)</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">20260727</span>)</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>grappes <span class="ot">&lt;-</span> <span class="fu">split</span>(u, u<span class="sc">$</span>article)</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>boot <span class="ot">&lt;-</span> <span class="fu">map_dbl</span>(<span class="fu">seq_len</span>(<span class="dv">2000</span>), <span class="cf">function</span>(i) {</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  ech <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(grappes[<span class="fu">sample</span>(<span class="fu">names</span>(grappes), <span class="fu">length</span>(grappes), <span class="at">replace =</span> <span class="cn">TRUE</span>)])</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ac1</span>(ech<span class="sc">$</span>humain, ech<span class="sc">$</span>ia)<span class="sc">$</span>ac1</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a><span class="fu">ac1</span>(u<span class="sc">$</span>humain, u<span class="sc">$</span>ia) <span class="sc">|&gt;</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">ic_bas         =</span> <span class="fu">quantile</span>(boot, <span class="fl">0.025</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>         <span class="at">ic_haut        =</span> <span class="fu">quantile</span>(boot, <span class="fl">0.975</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>         <span class="at">prevalence_oui =</span> <span class="fu">mean</span>(<span class="fu">c</span>(u<span class="sc">$</span>humain <span class="sc">==</span> <span class="st">&quot;oui&quot;</span>, u<span class="sc">$</span>ia <span class="sc">==</span> <span class="st">&quot;oui&quot;</span>)),</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>         <span class="at">kappa_cohen    =</span> irr<span class="sc">::</span><span class="fu">kappa2</span>(<span class="fu">cbind</span>(u<span class="sc">$</span>humain, u<span class="sc">$</span>ia))<span class="sc">$</span>value) <span class="sc">|&gt;</span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">3</span>,</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>        <span class="at">caption =</span> <span class="st">&quot;Accord global sur les 8 champs Util_ (IC 95 % par bootstrap de grappes)&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top">
+<caption>Accord global sur les 8 champs Util_ (IC 95 % par bootstrap de grappes)</caption>
+<thead>
+<tr class="header">
+<th style="text-align: right;">n</th>
+<th style="text-align: right;">pa</th>
+<th style="text-align: right;">pe</th>
+<th style="text-align: right;">ac1</th>
+<th style="text-align: right;">ic_bas</th>
+<th style="text-align: right;">ic_haut</th>
+<th style="text-align: right;">prevalence_oui</th>
+<th style="text-align: right;">kappa_cohen</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">168</td>
+<td style="text-align: right;">0.851</td>
+<td style="text-align: right;">0.406</td>
+<td style="text-align: right;">0.75</td>
+<td style="text-align: right;">0.629</td>
+<td style="text-align: right;">0.851</td>
+<td style="text-align: right;">0.717</td>
+<td style="text-align: right;">0.636</td>
+</tr>
+</tbody>
+</table>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>u <span class="sc">|&gt;</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(champ) <span class="sc">|&gt;</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_modify</span>(<span class="sc">~</span> <span class="fu">ac1</span>(.x<span class="sc">$</span>humain, .x<span class="sc">$</span>ia)) <span class="sc">|&gt;</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">|&gt;</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(champ, n, pa, ac1) <span class="sc">|&gt;</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(pa) <span class="sc">|&gt;</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">3</span>, <span class="at">caption =</span> <span class="st">&quot;Accord par champ Util_ (indicatif, n = 21)&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top">
+<caption>Accord par champ Util_ (indicatif, n = 21)</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">champ</th>
+<th style="text-align: right;">n</th>
+<th style="text-align: right;">pa</th>
+<th style="text-align: right;">ac1</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Util_social</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">0.714</td>
+<td style="text-align: right;">0.552</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Util_economique</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">0.762</td>
+<td style="text-align: right;">0.560</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Util_temporel</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">0.762</td>
+<td style="text-align: right;">0.670</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Util_spatial</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">0.810</td>
+<td style="text-align: right;">0.657</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Util_scenarios</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">0.857</td>
+<td style="text-align: right;">0.802</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Util_physique</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">0.905</td>
+<td style="text-align: right;">0.820</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Util_biologique</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">1.000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Util_peche</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">1.000</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h1 id="direction-des-désaccords">4. Direction des désaccords</h1>
+<p>Sous l’hypothèse d’absence de biais systématique, les désaccords se répartiraient également entre sur-codage (IA = Oui, humain = Non) et sous-codage. Le test exact est mené une seule fois, sur l’ensemble des champs <code>Util_</code> agrégés. Les tests par champ ne sont pas reportés : aucun ne survit à une correction pour tests multiples sur n = 21, et les champs concernés ayant été identifiés à la lecture de ce même tableau, un test qui leur serait spécifique serait circulaire. Les effectifs par champ sont donc descriptifs.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>biais <span class="ot">&lt;-</span> u <span class="sc">|&gt;</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(champ) <span class="sc">|&gt;</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">n           =</span> <span class="fu">n</span>(),</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">desaccords  =</span> <span class="fu">sum</span>(humain <span class="sc">!=</span> ia),</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>            <span class="at">ia_sur_code =</span> <span class="fu">sum</span>(ia <span class="sc">==</span> <span class="st">&quot;oui&quot;</span> <span class="sc">&amp;</span> humain <span class="sc">==</span> <span class="st">&quot;non&quot;</span>),</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>            <span class="at">ia_sous_code =</span> <span class="fu">sum</span>(ia <span class="sc">==</span> <span class="st">&quot;non&quot;</span> <span class="sc">&amp;</span> humain <span class="sc">==</span> <span class="st">&quot;oui&quot;</span>),</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>            <span class="at">.groups =</span> <span class="st">&quot;drop&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">desc</span>(desaccords))</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(biais, <span class="at">caption =</span> <span class="st">&quot;Répartition des désaccords par champ (descriptif)&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top">
+<caption>Répartition des désaccords par champ (descriptif)</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">champ</th>
+<th style="text-align: right;">n</th>
+<th style="text-align: right;">desaccords</th>
+<th style="text-align: right;">ia_sur_code</th>
+<th style="text-align: right;">ia_sous_code</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Util_social</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Util_economique</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Util_temporel</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Util_spatial</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Util_scenarios</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Util_physique</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">2</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Util_biologique</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Util_peche</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>test <span class="ot">&lt;-</span> <span class="fu">binom.test</span>(<span class="fu">sum</span>(biais<span class="sc">$</span>ia_sur_code),</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>                   <span class="fu">sum</span>(biais<span class="sc">$</span>ia_sur_code) <span class="sc">+</span> <span class="fu">sum</span>(biais<span class="sc">$</span>ia_sous_code), <span class="at">p =</span> <span class="fl">0.5</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(<span class="at">desaccords     =</span> <span class="fu">sum</span>(biais<span class="sc">$</span>desaccords),</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>       <span class="at">sur_codage_ia  =</span> <span class="fu">sum</span>(biais<span class="sc">$</span>ia_sur_code),</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>       <span class="at">sous_codage_ia =</span> <span class="fu">sum</span>(biais<span class="sc">$</span>ia_sous_code),</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>       <span class="at">part_sur_codage =</span> test<span class="sc">$</span>estimate,</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>       <span class="at">ic_bas         =</span> test<span class="sc">$</span>conf.int[<span class="dv">1</span>],</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>       <span class="at">ic_haut        =</span> test<span class="sc">$</span>conf.int[<span class="dv">2</span>],</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>       <span class="at">p_exact        =</span> test<span class="sc">$</span>p.value) <span class="sc">|&gt;</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">3</span>,</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>        <span class="at">caption =</span> <span class="st">&quot;Bilan directionnel, tous champs Util_ (test binomial exact)&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top">
+<caption>Bilan directionnel, tous champs Util_ (test binomial exact)</caption>
+<colgroup>
+<col style="width: 13%">
+<col style="width: 17%">
+<col style="width: 18%">
+<col style="width: 20%">
+<col style="width: 8%">
+<col style="width: 10%">
+<col style="width: 10%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: right;">desaccords</th>
+<th style="text-align: right;">sur_codage_ia</th>
+<th style="text-align: right;">sous_codage_ia</th>
+<th style="text-align: right;">part_sur_codage</th>
+<th style="text-align: right;">ic_bas</th>
+<th style="text-align: right;">ic_haut</th>
+<th style="text-align: right;">p_exact</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">25</td>
+<td style="text-align: right;">19</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">0.76</td>
+<td style="text-align: right;">0.549</td>
+<td style="text-align: right;">0.906</td>
+<td style="text-align: right;">0.015</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h1 id="calibration-de-la-confiance-déclarée">5. Calibration de la confiance déclarée</h1>
+<p>Le pipeline reporte une confiance par cellule. Sa distribution est dégénérée : 93,6 % des cellules sont déclarées en confiance haute et aucune cellule du sous-ensemble Util_ comparable n’est déclarée basse. Le tableau force l’affichage des bandes vides (<code>.drop = FALSE</code>) : une modalité absente et une modalité à zéro ne doivent pas se confondre visuellement.</p>
+<p>L’écart entre la part de confiance haute et l’exactitude observée mesure la surconfiance. Il est unidirectionnel dans les deux blocs. La confiance déclarée ne permet donc pas de définir un seuil de vérification manuelle et n’a pas été utilisée pour trier les extractions.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>compare <span class="sc">|&gt;</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(comparable) <span class="sc">|&gt;</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">bande =</span> <span class="fu">factor</span>(confiance, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">&quot;haute&quot;</span>, <span class="st">&quot;moyenne&quot;</span>, <span class="st">&quot;basse&quot;</span>)),</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>         <span class="at">bloc  =</span> <span class="fu">if_else</span>(util, <span class="st">&quot;Util_&quot;</span>, <span class="st">&quot;Factuel / Modèle&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(bloc, bande, <span class="at">.drop =</span> <span class="cn">FALSE</span>) <span class="sc">|&gt;</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">n =</span> <span class="fu">n</span>(), <span class="at">n_accord =</span> <span class="fu">sum</span>(accord), <span class="at">.groups =</span> <span class="st">&quot;drop&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">taux_accord =</span> <span class="fu">if_else</span>(n <span class="sc">&gt;</span> <span class="dv">0</span>, n_accord <span class="sc">/</span> n, <span class="cn">NA_real_</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">3</span>, <span class="at">caption =</span> <span class="st">&quot;Accord par bloc et bande de confiance déclarée&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top">
+<caption>Accord par bloc et bande de confiance déclarée</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">bloc</th>
+<th style="text-align: left;">bande</th>
+<th style="text-align: right;">n</th>
+<th style="text-align: right;">n_accord</th>
+<th style="text-align: right;">taux_accord</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Factuel / Modèle</td>
+<td style="text-align: left;">haute</td>
+<td style="text-align: right;">91</td>
+<td style="text-align: right;">55</td>
+<td style="text-align: right;">0.604</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Factuel / Modèle</td>
+<td style="text-align: left;">moyenne</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0.333</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Factuel / Modèle</td>
+<td style="text-align: left;">basse</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">NA</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Util_</td>
+<td style="text-align: left;">haute</td>
+<td style="text-align: right;">164</td>
+<td style="text-align: right;">142</td>
+<td style="text-align: right;">0.866</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Util_</td>
+<td style="text-align: left;">moyenne</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0.250</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Util_</td>
+<td style="text-align: left;">basse</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">NA</td>
+</tr>
+</tbody>
+</table>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>compare <span class="sc">|&gt;</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(comparable) <span class="sc">|&gt;</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">bloc =</span> <span class="fu">if_else</span>(util, <span class="st">&quot;Util_&quot;</span>, <span class="st">&quot;Factuel / Modèle&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(bloc) <span class="sc">|&gt;</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">n             =</span> <span class="fu">n</span>(),</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>            <span class="at">part_haute    =</span> <span class="fu">mean</span>(confiance <span class="sc">==</span> <span class="st">&quot;haute&quot;</span>),</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>            <span class="at">exactitude    =</span> <span class="fu">mean</span>(accord),</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>            <span class="at">surconfiance  =</span> part_haute <span class="sc">-</span> exactitude,</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>            <span class="at">.groups =</span> <span class="st">&quot;drop&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">3</span>, <span class="at">caption =</span> <span class="st">&quot;Surconfiance déclarée par bloc&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top">
+<caption>Surconfiance déclarée par bloc</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">bloc</th>
+<th style="text-align: right;">n</th>
+<th style="text-align: right;">part_haute</th>
+<th style="text-align: right;">exactitude</th>
+<th style="text-align: right;">surconfiance</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Factuel / Modèle</td>
+<td style="text-align: right;">94</td>
+<td style="text-align: right;">0.968</td>
+<td style="text-align: right;">0.596</td>
+<td style="text-align: right;">0.372</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Util_</td>
+<td style="text-align: right;">168</td>
+<td style="text-align: right;">0.976</td>
+<td style="text-align: right;">0.851</td>
+<td style="text-align: right;">0.125</td>
+</tr>
+</tbody>
+</table>
+</div>
 </div>
 
 <footer class="ocean-footer">
