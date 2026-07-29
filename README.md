@@ -140,7 +140,9 @@ This step applies upstream of `05_analysis/`, despite its folder number.
 
 **Python** 3.9 or later:
 
+```bash
 pip install pandas requests openpyxl anthropic pymupdf
+```
 
 **R** 4.2 or later, with Quarto. Packages: `tidyverse`, `here`, `readxl`,
 `ggplot2`, `sf`, `rnaturalearth`, `vegan`, `ggrepel`, `forcats`, `irr`,
