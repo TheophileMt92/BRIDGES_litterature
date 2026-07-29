@@ -211,24 +211,23 @@ qualification tient à 95 %. L'écart entre l'AC1 (0,750) et le kappa de Cohen
 (0,636) illustre le paradoxe de prévalence et non une instabilité du calcul :
 avec 72 % de "Oui", le kappa pénalise un accord qui reste élevé.
 
-La lecture par champ montre que cet accord global masque deux régimes. Quatre
-champs relevant de propriétés directement lisibles du modèle (biologique,
-pêche, physique, scénarios) atteignent 0,80 à 1,00. Les quatre autres, dont
-l'identification suppose une interprétation du contenu (social, économique,
-temporel, spatial), plafonnent entre 0,55 et 0,67. Sur n = 21, ces valeurs
-sont indicatives, mais l'ordre est cohérent avec la direction des désaccords
-analysée en section 4.
+La lecture par champ montre que cet accord global recouvre deux situations.
+Cinq champs se situent entre 0,76 et 1,00 d'accord observé, dont deux
+parfaits (Util_biologique, Util_peche). Trois plafonnent entre 0,71 et 0,86 :
+Util_social, Util_economique et Util_scenarios, dont les désaccords présentent
+en outre une particularité analysée en section 4. Sur n = 21, ces valeurs par
+champ sont indicatives et non inférentielles.
 
 **Le codage automatique des champs Util_ est donc jugé fiable au sens des
 critères usuels d'accord inter-codeurs : 85,1 % d'accord observé (143 cellules
-sur 168), AC1 = 0,750 (IC 95 % : 0,629 à 0,851)**, sous réserve du biais
+sur 168), AC1 = 0,750 (IC 95 % : 0,629 à 0,851)**, sous réserve de l'écart
 directionnel analysé en section 4.
 
-# 4. Direction des désaccords
+# 4. Symétrie des désaccords
 
-Sous l'hypothèse d'absence de biais systématique, les désaccords se
-répartiraient également entre sur-codage (IA = Oui, humain = Non) et
-sous-codage. Le test exact est mené une seule fois, sur l'ensemble des champs
+Si les deux codeurs divergeaient sans écart systématique, les désaccords se
+répartiraient également entre les deux sens possibles (IA = Oui / humain = Non,
+et l'inverse). Le test exact est mené une seule fois, sur l'ensemble des champs
 `Util_` agrégés. Les tests par champ ne sont pas reportés : aucun ne survit à
 une correction pour tests multiples sur n = 21, et les champs concernés ayant
 été identifiés à la lecture de ce même tableau, un test qui leur serait
@@ -262,17 +261,19 @@ tibble(desaccords        = sum(biais$desaccords),
 ```
 
 Les désaccords ne se répartissent pas symétriquement : 19 sur 25 correspondent
-à un sur-codage de l'IA (76 %, IC 95 % : 55 à 91 %, p = 0,015). Le pipeline
-déclare une dimension présente là où le codage humain ne la retrouve pas,
-plutôt que l'inverse. Le phénomène se concentre sur Util_social,
-Util_economique et Util_scenarios, où les 14 désaccords vont tous dans ce
-sens, tandis que Util_spatial et Util_physique présentent le profil inverse
-sur de faibles effectifs.
+à un codage "Oui" par l'IA contre "Non" par le codeur humain (76 %, IC 95 % :
+55 à 91 %, p = 0,015). Le phénomène se concentre sur Util_social,
+Util_economique et Util_scenarios, où les 14 désaccords vont tous dans ce sens,
+tandis que Util_spatial et Util_physique présentent le profil inverse sur de
+faibles effectifs.
 
-La conséquence n'est pas une simple imprécision : un biais unidirectionnel se
-propage aux prévalences estimées sur le corpus, contrairement à une erreur
-symétrique qui se compenserait à l'agrégation. Sa magnitude est quantifiée en
-section 6.
+Ce constat porte sur la répartition des écarts et non sur leur origine :
+l'analyse ne détermine pas lequel des deux codages est le plus proche du texte.
+Sa conséquence est en revanche directe. Une divergence symétrique se
+compenserait à l'agrégation et n'affecterait que le classement d'articles
+individuels ; un écart unidirectionnel déplace la prévalence elle-même, c'est-à-dire
+la statistique que produit une revue de cadrage. Sa magnitude est quantifiée en
+section 7.
 
 # 5. Calibration de la confiance déclarée
 
@@ -302,14 +303,12 @@ compare_c |>
   kable(digits = 3, caption = "Accord par bloc et bande de confiance déclarée")
 ```
 
-97,6 % des cellules Util_ comparables sont en confiance haute et aucune en
-confiance basse : les 10 cellules basses appartiennent toutes à des documents
-écartés du codage humain. Le contraste apparent entre 86,6 % et 25,0 % d'accord
-repose sur 4 cellules et ne permet aucune inférence. La surconfiance, écart
-entre part de confiance haute et exactitude observée, atteint 37 points sur le
-bloc à vocabulaire ouvert contre 12 sur le bloc Util_ : le pipeline est d'autant
-plus confiant qu'il se trompe. **La confiance déclarée ne permet donc pas de
-trier les cellules à l'intérieur des documents exploitables.**
+La part de cellules déclarées en confiance haute (97,6 % sur le bloc Util_,
+96,8 % sur le bloc à vocabulaire ouvert) dépasse par ailleurs l'accord observé
+de 12 points sur le premier (85,1 %) et de 18 points sur le second (78,7 %
+après application des règles de comparaison, section 6) : le pipeline est
+d'autant plus confiant qu'il se trompe. **La confiance déclarée ne permet donc
+pas de trier les cellules à l'intérieur des documents exploitables.**
 
 ```{r confiance-document}
 statut_doc <- compare |>
@@ -341,11 +340,11 @@ validation : le screening doit couvrir l'ensemble du corpus.**
 # 6. Accord sur les champs Factuel / Modèle
 
 Ces quatre champs relèvent d'un régime de mesure différent des champs Util_ :
-vocabulaire fermé pour Type_article et Milieu, texte libre pour
-Modele_utilise et Bassin_oceanique, avec des valeurs multiples possibles.
-L'égalité stricte de chaînes, appropriée à un binaire Oui/Non, y est
-inadaptée : une abréviation, une énumération dans un ordre différent ou un
-niveau de détail supérieur y comptent comme des désaccords.
+vocabulaire fermé déclaré pour Type_article seul, vocabulaire ouvert ou
+multivalué pour les trois autres. L'égalité stricte de chaînes, appropriée à
+un binaire Oui/Non, y est inadaptée : une abréviation, une énumération dans un
+ordre différent ou un niveau de détail supérieur y comptent comme des
+désaccords.
 
 L'accord brut est donc reporté comme borne inférieure, puis complété par des
 règles de comparaison. Ces règles ont été définies après examen des 38
@@ -473,12 +472,9 @@ ac1_type <- ac1(fm$humain[fm$champ == "Type_article"],
 
 Après application des règles de comparaison, l'accord du bloc passe de 59,6 %
 à 78,7 % (74 cellules sur 94). Trois champs atteignent un niveau élevé :
-Type_article 92,0 % (AC1 = 0,910 pour K = 5 catégories déclarées, non
-comparable à celui de la section 3 puisque Pe n'y vaut que 0,11),
-Bassin_oceanique 86,4 % et Milieu 75,0 %. Les discordances résiduelles de
-Milieu opposent pour l'essentiel la catégorie collective "multiple" à une
-valeur unique, dans les deux sens : elles ne sont pas réconciliables par
-règle, "multiple" n'explicitant pas les milieux qu'elle recouvre.
+Type_article 92,0 % (AC1 = `r round(ac1_type$ac1, 3)` pour K = 5 catégories
+déclarées, non comparable à celui de la section 3 puisque Pe n'y vaut que
+0,11), Bassin_oceanique 86,4 % et Milieu 75,0 %.
 
 Modele_utilise fait exception avec un accord strict nul, résultat entièrement
 imputable à la méthode de comparaison et non au pipeline. L'IA développe
@@ -508,12 +504,6 @@ du protocole d'extraction, qui doit être complété par des règles de
 comparaison et de saisie plutôt que par un vocabulaire supplémentaire :
 granularité attendue pour les noms de modèles, énumération obligatoire pour
 les champs multivalués, langue unique de saisie.**
-
-Les corrections de protocole identifiées ici portent sur les instructions
-d'extraction et non sur le pipeline lui-même. Toute ré-extraction consécutive
-produirait des sorties non couvertes par la présente validation : une
-ré-extraction ciblée sur les seuls champs concernés est préférable à une
-relance complète.
 
 # 7. Conclusion : le pipeline est-il fiable ?
 
@@ -575,7 +565,7 @@ d'accord. Les valeurs corrigées sont reportées par bloc.
 
 *Champs Util_.* 85,1 % d'accord (143 cellules sur 168), AC1 = 0,750, borne
 inférieure de l'IC à 0,629 : la qualification substantielle tient à 95 %. Cinq
-champs sur huit sont directement exploitables, avec un accord de 0,86 à 1,00.
+champs sur huit sont directement exploitables, avec un accord de 0,76 à 1,00.
 
 Trois font exception, non par un accord plus faible (0,71 à 0,86) mais par la
 nature de leurs désaccords : sur Util_social, Util_economique et
