@@ -27,7 +27,50 @@ library(knitr)       # tableaux formatés (kable)
 library(irr)         # kappa de Cohen (kappa2)
 ```
 
-# 1. Données et appariement
+# 1. Protocole de validation et appariement des données
+
+## Dispositif
+
+Cette analyse évalue la concordance entre l'extraction automatisée du pipeline
+BRIDGES et un codage manuel de référence. Elle ne mesure pas une exactitude
+absolue : en l'absence d'un troisième codage arbitral, un désaccord n'est
+attribuable ni au pipeline ni au codeur.
+
+**Extraction automatisée.** Le pipeline associe un script Python et l'API
+Anthropic (modèle Claude). Il produit, pour chacun des 27 champs du template
+v17 et chacun des 207 articles du corpus, une valeur et un niveau de confiance
+déclaré (haute / moyenne / basse), à partir du texte intégral des PDF récupérés
+via Unpaywall. Sur l'ensemble du corpus (5 589 cellules), 87 % des valeurs sont
+déclarées en confiance haute, 12 % en moyenne et 0,5 % en basse.
+
+**Échantillon.** 30 articles ont été retenus, soit 14,5 % du corpus. Le tirage
+est stratifié sur la confiance déclarée (graine fixée, seed = 42) : les 9
+articles comportant au moins un champ de confiance basse ont été inclus
+d'office, les 21 autres tirés aléatoirement. L'échantillon sur-représente donc
+délibérément les extractions les moins assurées, ce qui rend la concordance
+mesurée conservatrice mais interdit d'extrapoler au corpus les proportions
+observées sur les documents problématiques.
+
+**Codage de référence.** Un codeur unique (T. Mouton) a codé 12 des 27 champs
+sur les 30 articles, soit 360 cellules, à partir du texte intégral et sans
+consulter les sorties du pipeline (codage à l'aveugle). Les 12 champs retenus
+sont ceux qui alimentent les analyses de la revue : 8 champs `Util_` à réponse
+binaire (Oui / Non) et 4 champs factuels à vocabulaire contrôlé ou libre
+(Type_article, Modele_utilise, Milieu, Bassin_oceanique).
+
+## Plan d'analyse
+
+L'accord est mesuré séparément sur les deux blocs de champs, dont les régimes
+de mesure interdisent l'agrégation en un taux unique. Sur le bloc binaire
+`Util_`, l'accord observé est complété par l'AC1 de Gwet (section 3), un
+intervalle de confiance par bootstrap de grappes au niveau article, et un test
+de symétrie des désaccords (section 4). Sur le bloc factuel, l'égalité stricte
+de chaînes étant inadaptée à des champs multivalués, l'accord brut est reporté
+comme borne inférieure puis complété par des règles de comparaison énoncées
+explicitement (section 6). La calibration de la confiance déclarée est examinée
+séparément (section 5).
+
+## Appariement des données
 
 Le codage humain (onglet `Codage`, format long : une ligne par couple
 article x champ) est apparié à l'extraction IA (format transposé : champs en
@@ -124,11 +167,13 @@ compare |>
   kable(caption = "Dénominateurs par bloc de champs")
 ```
 
-Le tirage de 30 articles contient 5 non-articles (17 %), tous extraits par le
-pipeline en confiance haute. Deux relèvent d'une erreur de récupération (avis
-de correction, l'article original étant absent du PDF), trois d'un défaut
-d'éligibilité (rétractation, géo-ingénierie, hors périmètre). Rapporté aux 207
-articles du corpus, cet ordre de grandeur atteint une trentaine de documents.
+Le tirage de 30 articles contient 5 non-articles, tous extraits par le pipeline
+en confiance haute. Deux relèvent d'une erreur de récupération (avis de
+correction, l'article original étant absent du PDF), trois d'un défaut
+d'éligibilité (rétractation, géo-ingénierie, hors périmètre). L'échantillon
+sur-représentant volontairement les documents à confiance basse, cette
+proportion ne peut pas être extrapolée au corpus : elle en constitue un
+majorant.
 
 Ce mode de défaillance est invisible pour les statistiques d'accord qui suivent,
 puisque les cellules concernées ont été écartées du codage humain. Il établit la
@@ -328,14 +373,14 @@ compare |>
   kable(caption = "Documents exclus vs. présence de cellules à confiance non haute")
 ```
 
-Au niveau document, en revanche, le drapeau "basse" est parfaitement spécifique
-sur cet échantillon : les 4 documents concernés font tous partie des 9 exclus
-(p = 0,005 sous l'hypothèse d'indépendance), mais il n'en identifie que 4 sur 9.
-Le niveau "moyenne" n'apporte rien, 5 des 10 documents concernés étant
-exploitables. Un document exclu ne portait par ailleurs aucun signal, ayant été
-extrait intégralement en confiance haute. **Le drapeau "basse" peut donc servir
-à prioriser le screening full-text de la section 2, sans que son absence vaille
-validation : le screening doit couvrir l'ensemble du corpus.**
+Au niveau document, le drapeau "basse" ne pointe que vers des documents
+inexploitables : les 4 documents concernés font tous partie des 9 exclus.
+L'échantillon incluant par construction l'ensemble des articles du corpus
+portant au moins un champ de confiance basse, ce constat porte sur la
+population entière et non sur un tirage, mais il ne peut faire l'objet d'un
+test de significativité. Le drapeau reste peu sensible : il n'identifie que 4
+des 9 documents à écarter. Le niveau "moyenne" n'apporte rien, 5 des 10
+documents concernés étant exploitables.
 
 # 6. Accord sur les champs Factuel / Modèle
 
@@ -622,4 +667,7 @@ les corrections de protocole identifiées portent sur les instructions
 d'extraction et non sur le pipeline lui-même : toute ré-extraction consécutive
 produirait des sorties non couvertes par la présente validation, et une
 ré-extraction ciblée sur les seuls champs concernés est préférable à une
-relance complète.
+relance complète. L'échantillon sur-représentant les articles les moins bien extraits, la
+concordance de 82,8 % est vraisemblablement inférieure à celle qu'on
+observerait sur un tirage aléatoire simple : elle constitue une estimation
+conservatrice.
