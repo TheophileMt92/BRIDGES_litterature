@@ -139,3 +139,39 @@ This step applies upstream of `05_analysis/`, despite its folder number.
 ## Requirements
 
 **Python** 3.9 or later:
+
+pip install pandas requests openpyxl anthropic pymupdf
+
+**R** 4.2 or later, with Quarto. Packages: `tidyverse`, `here`, `readxl`,
+`ggplot2`, `sf`, `rnaturalearth`, `vegan`, `ggrepel`, `forcats`, `irr`,
+`knitr`, `stringi`, `bibliometrix`, `writexl`.
+
+**API key.** The extraction scripts require an Anthropic API key in the
+`ANTHROPIC_API_KEY` environment variable. `unpaywall_check.py` requires an
+email address in `UNPAYWALL_EMAIL`.
+
+---
+
+## Known limitations
+
+The Python scripts use relative paths and expect to be run from a directory
+holding their input files. See the user guide for the working directory each
+one needs.
+
+`extraction_claude.py` truncates article text at 60,000 characters, so material
+in the closing sections of very long papers may not reach the extraction step.
+
+The PRISMA diagram in `outputs/figures/` was generated during the OpenAlex
+exploration and reports figures from that search, not from the Web of Science
+corpus used for the review.
+
+Validation covers 12 of the 27 extraction fields, on 30 of the 207 articles,
+against a single reference coder. The reported figures measure concordance
+between the pipeline and that coder, not absolute accuracy.
+
+---
+
+## Contact
+
+Théophile L. Mouton - work carried out under IRD purchase order 4500288125,
+BRIDGES-Avatar project, January–July 2026.
