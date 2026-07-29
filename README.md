@@ -5,8 +5,8 @@ decision support in marine and coastal systems, carried out for the BRIDGES-Avat
 project (WP4).
 
 This repository contains the search strategy, screening records, full-text
-retrieval pipeline, AI-assisted extraction scripts and analysis code produced
-during the review.
+retrieval pipeline, AI-assisted extraction scripts, the validation of that
+extraction, and the analysis code produced during the review.
 
 **See [`docs/user_guide.md`](docs/user_guide.md) for instructions on running the pipeline.**
 
@@ -15,20 +15,33 @@ during the review.
 ## Status of the data
 
 The extraction outputs in `04_extraction/outputs/` were produced by an
-AI-assisted pipeline (Claude Sonnet, Anthropic API) and **have not yet been
-validated by hand**. Every field carries a confidence flag; fields marked
-*basse* or *moyenne* are the priority for human review. These files should not
-be treated as final results.
+AI-assisted pipeline (Claude Sonnet, Anthropic API) and validated against blind
+manual coding on a stratified sample of 30 articles and 12 fields (see
+`06_validation/`). Overall concordance is 82.8 %; agreement on the binary
+`Util_` fields is 85.1 % (Gwet's AC1 = 0.750, 95 % CI 0.629 to 0.851).
 
-Coverage at the time of writing: 3,013 records screened at title/abstract stage
-in ASReview, of which 1,001 have been screened and 816 retained; 207 full texts
-retrieved and extracted.
+Three caveats apply before these files are used as results:
+
+- `Util_social`, `Util_economique` and `Util_scenarios` show a systematic
+  directional gap and need an operational definition followed by recoding
+  before their prevalences are reported.
+- 5 of the 30 sampled articles were not usable research articles (one
+  retraction, two correction notices, two out of scope), all extracted at high
+  confidence. A full-text screening step is required upstream of extraction.
+- The per-cell confidence flag does not discriminate within usable documents
+  and must not be used as a triage threshold. At document level, a *basse* flag
+  did point only to documents that were later excluded, so it can prioritise
+  the full-text screening queue, but its absence is not a validation.
+
+Coverage at the time of writing: 3,013 records at title/abstract stage in
+ASReview, 1,001 screened and 816 retained; 207 full texts retrieved and
+extracted; 30 articles validated by hand.
 
 ---
 
 ## Repository structure
 
-The five numbered folders follow the order of the review pipeline.
+The six numbered folders follow the order of the review pipeline.
 
 ### `01_search/` - Search strategy and corpus construction
 
@@ -97,6 +110,22 @@ The analysis compares the two.
 
 Rendered HTML sits alongside each `.qmd`.
 
+### `06_validation/` - Validation of the AI-assisted extraction
+
+| Path | Contents |
+|---|---|
+| `Agreement_analyses.qmd` | Agreement analysis between the pipeline and blind manual coding |
+| `BRIDGES_validation_feuille_codage.xlsx` | Blind coding sheet: instructions plus 30 articles x 12 fields |
+
+Sample of 30 articles (14.5 % of the 207 extracted), stratified on the
+pipeline's declared confidence with a fixed seed: the 9 articles carrying at
+least one *basse* field were included exhaustively, the remaining 21 drawn at
+random. The sample therefore over-represents the least confident extractions,
+which makes the reported agreement conservative but prevents extrapolating the
+proportion of ineligible documents to the corpus.
+
+This step applies upstream of `05_analysis/`, despite its folder number.
+
 ### Other folders
 
 | Path | Contents |
@@ -110,39 +139,3 @@ Rendered HTML sits alongside each `.qmd`.
 ## Requirements
 
 **Python** 3.9 or later:
-
-```
-pip install pandas requests openpyxl anthropic pymupdf
-```
-
-**R** 4.2 or later, with Quarto. Packages: `tidyverse`, `here`, `readxl`,
-`ggplot2`, `sf`, `rnaturalearth`, `vegan`, `ggrepel`, `forcats`, `irr`,
-`bibliometrix`, `writexl`.
-
-**API key.** The extraction scripts require an Anthropic API key in the
-`ANTHROPIC_API_KEY` environment variable. `unpaywall_check.py` requires an
-email address in `UNPAYWALL_EMAIL`.
-
----
-
-## Known limitations
-
-The Python scripts use relative paths and expect to be run from a directory
-holding their input files. See the user guide for the working directory each
-one needs.
-
-`extraction_claude.py` truncates article text at 60,000 characters, so material
-in the closing sections of very long papers may not reach the extraction step.
-
-The PRISMA diagram in `outputs/figures/` was generated during the OpenAlex
-exploration and reports figures from that search, not from the Web of Science
-corpus used for the review.
-
-Extraction output is unvalidated (see *Status of the data* above).
-
----
-
-## Contact
-
-Théophile L. Mouton - work carried out under IRD purchase order 4500288125,
-BRIDGES-Avatar project, January–June 2026.
