@@ -124,26 +124,48 @@ compare |>
   kable(caption = "Dénominateurs par bloc de champs")
 ```
 
-Le tirage de 30 articles contient 5 non-articles (17 %), que le pipeline a
-néanmoins extraits en leur attribuant une confiance haute. Ce taux, appliqué
-aux 207 articles du corpus, suggère une trentaine de documents non éligibles
-traités comme des articles de recherche. Ce mode de défaillance ne peut pas
-apparaître dans les statistiques d'accord qui suivent, puisque les cellules
-concernées ont précisément été écartées du codage humain.
+Le tirage de 30 articles contient 5 non-articles (17 %), tous extraits par le
+pipeline en confiance haute. Deux relèvent d'une erreur de récupération (avis
+de correction, l'article original étant absent du PDF), trois d'un défaut
+d'éligibilité (rétractation, géo-ingénierie, hors périmètre). Rapporté aux 207
+articles du corpus, cet ordre de grandeur atteint une trentaine de documents.
+
+Ce mode de défaillance est invisible pour les statistiques d'accord qui suivent,
+puisque les cellules concernées ont été écartées du codage humain. Il établit la
+**nécessité d'un screening full-text en amont de l'extraction**, vérifiant à la
+fois la conformité de chaque PDF à sa référence et l'éligibilité de l'article. La
+confiance déclarée ne peut s'y substituer (section 5).
 
 # 3. Accord sur les champs Util_
 
-L'AC1 de Gwet est calculé manuellement (non fourni par `irr`) :
-Pe = 1/(K-1) * somme_k pi_k (1 - pi_k), où pi_k est la prévalence moyenne de
-la catégorie k sur les deux codeurs, puis AC1 = (Pa - Pe) / (1 - Pe). Le kappa
-de Cohen est reporté à titre de comparaison : la prévalence de "Oui" atteint
-0,72, régime dans lequel le kappa s'effondre alors que l'accord observé reste
-élevé (paradoxe de prévalence). C'est la raison du recours à l'AC1.
+L'AC1 (*first-order Agreement Coefficient*, Gwet 2008) mesure l'accord entre
+deux codeurs une fois retranchée la part attribuable au hasard. Il se lit
+comme le kappa : 0 correspond à un accord purement fortuit, 1 à un accord
+parfait, et l'intervalle 0,61 à 0,80 est conventionnellement qualifié de
+substantiel.
 
-L'intervalle de confiance provient d'un bootstrap de grappes rééchantillonnant
-les 21 articles : les 8 cellules d'un même article ne sont pas indépendantes,
-et un IC calculé au niveau cellule serait trop étroit. Les valeurs par champ
-reposent sur n = 21 et sont indicatives, non inférentielles.
+Les deux coefficients partagent la forme (Pa - Pe) / (1 - Pe), où Pa est
+l'accord observé (*percent agreement* : proportion de cellules identiquement
+codées par les deux codeurs) et Pe l'accord attendu par hasard (*percent
+chance agreement*), sous l'hypothèse d'un codage aléatoire. Le numérateur
+mesure l'accord acquis au-delà du hasard, le dénominateur l'accord qu'il
+restait à acquérir : le coefficient exprime donc la fraction réalisée de cette
+marge. Pa est une simple comptabilité ; Pe seul dépend d'un modèle, et c'est
+là que les deux coefficients divergent.
+
+Le kappa suppose que les codeurs répondent selon leurs fréquences marginales :
+lorsqu'une catégorie domine, ici 72 % de "Oui", il attribue au hasard une
+efficacité artificiellement élevée et s'effondre alors que l'accord observé
+reste fort (paradoxe de prévalence). L'AC1 suppose au contraire que le hasard
+n'intervient que sur les cas ambigus, d'autant plus rares que la distribution
+est déséquilibrée. D'où Pe = 1/(K-1) * somme_k pi_k (1 - pi_k), où pi_k est la
+prévalence moyenne de la catégorie k sur les deux codeurs. Le calcul est
+manuel, `irr` ne fournissant pas ce coefficient. Le kappa reste reporté à
+titre de comparaison.
+
+> **Référence** : Gwet, K. L. (2008), *Computing inter-rater reliability and
+> its variance in the presence of high agreement*, British Journal of
+> Mathematical and Statistical Psychology, 61(1), 29-48.
 
 ```{r accord}
 ac1 <- function(a, b, cat = c("oui", "non")) {
@@ -181,12 +203,13 @@ u |>
   kable(digits = 3, caption = "Accord par champ Util_ (indicatif, n = 21)")
 ```
 
-L'accord observé atteint 85,1 % et l'AC1 0,750, soit un accord substantiel au
-sens des seuils usuels (0,61 à 0,80). La borne inférieure de l'IC bootstrap
-(0,629) reste au-dessus de 0,60 : la qualification tient à 95 %. L'écart entre
-l'AC1 (0,750) et le kappa de Cohen (0,636) illustre le paradoxe de prévalence
-et non une instabilité du calcul : avec 72 % de "Oui", le kappa pénalise un
-accord qui reste élevé.
+L'accord observé atteint 85,1 % et l'AC1 0,750. Autrement dit, le pipeline
+réalise 75 % de l'accord qu'il restait à acquérir au-delà du hasard, soit la
+partie haute de la plage substantielle de Landis et Koch (0,61 à 0,80). La
+borne inférieure de l'IC bootstrap (0,629) reste au-dessus de 0,60 : la
+qualification tient à 95 %. L'écart entre l'AC1 (0,750) et le kappa de Cohen
+(0,636) illustre le paradoxe de prévalence et non une instabilité du calcul :
+avec 72 % de "Oui", le kappa pénalise un accord qui reste élevé.
 
 La lecture par champ montre que cet accord global masque deux régimes. Quatre
 champs relevant de propriétés directement lisibles du modèle (biologique,
@@ -195,6 +218,11 @@ l'identification suppose une interprétation du contenu (social, économique,
 temporel, spatial), plafonnent entre 0,55 et 0,67. Sur n = 21, ces valeurs
 sont indicatives, mais l'ordre est cohérent avec la direction des désaccords
 analysée en section 4.
+
+**Le codage automatique des champs Util_ est donc jugé fiable au sens des
+critères usuels d'accord inter-codeurs : 85,1 % d'accord observé (143 cellules
+sur 168), AC1 = 0,750 (IC 95 % : 0,629 à 0,851)**, sous réserve du biais
+directionnel analysé en section 4.
 
 # 4. Direction des désaccords
 
@@ -209,27 +237,28 @@ spécifique serait circulaire. Les effectifs par champ sont donc descriptifs.
 ```{r biais}
 biais <- u |>
   group_by(champ) |>
-  summarise(n           = n(),
-            desaccords  = sum(humain != ia),
-            ia_sur_code = sum(ia == "oui" & humain == "non"),
-            ia_sous_code = sum(ia == "non" & humain == "oui"),
+  summarise(n                 = n(),
+            desaccords        = sum(humain != ia),
+            ia_oui_humain_non = sum(ia == "oui" & humain == "non"),
+            ia_non_humain_oui = sum(ia == "non" & humain == "oui"),
             .groups = "drop") |>
   arrange(desc(desaccords))
 
-kable(biais, caption = "Répartition des désaccords par champ (descriptif)")
+kable(biais, caption = "Répartition des désaccords par sens, par champ (descriptif)")
 
-test <- binom.test(sum(biais$ia_sur_code),
-                   sum(biais$ia_sur_code) + sum(biais$ia_sous_code), p = 0.5)
+test <- binom.test(sum(biais$ia_oui_humain_non),
+                   sum(biais$ia_oui_humain_non) + sum(biais$ia_non_humain_oui),
+                   p = 0.5)
 
-tibble(desaccords     = sum(biais$desaccords),
-       sur_codage_ia  = sum(biais$ia_sur_code),
-       sous_codage_ia = sum(biais$ia_sous_code),
-       part_sur_codage = test$estimate,
-       ic_bas         = test$conf.int[1],
-       ic_haut        = test$conf.int[2],
-       p_exact        = test$p.value) |>
+tibble(desaccords        = sum(biais$desaccords),
+       ia_oui_humain_non = sum(biais$ia_oui_humain_non),
+       ia_non_humain_oui = sum(biais$ia_non_humain_oui),
+       part_premier_sens = unname(test$estimate),
+       ic_bas            = test$conf.int[1],
+       ic_haut           = test$conf.int[2],
+       p_exact           = test$p.value) |>
   kable(digits = 3,
-        caption = "Bilan directionnel, tous champs Util_ (test binomial exact)")
+        caption = "Symétrie des désaccords, tous champs Util_ (test binomial exact)")
 ```
 
 Les désaccords ne se répartissent pas symétriquement : 19 sur 25 correspondent
@@ -247,88 +276,360 @@ section 6.
 
 # 5. Calibration de la confiance déclarée
 
-Le pipeline reporte une confiance par cellule. Sa distribution est dégénérée :
-93,6 % des cellules sont déclarées en confiance haute et aucune cellule du
-sous-ensemble Util_ comparable n'est déclarée basse. Le tableau force
-l'affichage des bandes vides (`.drop = FALSE`) : une modalité absente et une
-modalité à zéro ne doivent pas se confondre visuellement.
+Le pipeline reporte une confiance par cellule (haute, moyenne, basse). Cette
+section examine si cette variable peut servir à trier les extractions, au
+niveau cellule d'abord, au niveau document ensuite.
 
-L'écart entre la part de confiance haute et l'exactitude observée mesure la
-surconfiance. Il est unidirectionnel dans les deux blocs. La confiance
-déclarée ne permet donc pas de définir un seuil de vérification manuelle et
-n'a pas été utilisée pour trier les extractions.
-
-```{r confiance}
-compare |>
-  filter(comparable) |>
+```{r confiance-cellule}
+compare_c <- compare |>
   mutate(bande = factor(confiance, levels = c("haute", "moyenne", "basse")),
-         bloc  = if_else(util, "Util_", "Factuel / Modèle")) |>
+         bloc  = if_else(util, "Util_", "Factuel / Modèle"))
+
+# .drop = FALSE : une bande vide doit s'afficher à zéro, non disparaître
+compare_c |>
+  mutate(statut = case_when(comparable    ~ "Comparable (analysée)",
+                            is.na(humain) ~ "Non codée (non-article ou revue)",
+                            TRUE          ~ "Non extraite par l'IA")) |>
+  count(bande, statut, .drop = FALSE) |>
+  filter(n > 0) |>
+  kable(caption = "Localisation des cellules selon la confiance déclarée")
+
+compare_c |>
+  filter(comparable) |>
   group_by(bloc, bande, .drop = FALSE) |>
   summarise(n = n(), n_accord = sum(accord), .groups = "drop") |>
   mutate(taux_accord = if_else(n > 0, n_accord / n, NA_real_)) |>
   kable(digits = 3, caption = "Accord par bloc et bande de confiance déclarée")
+```
 
-compare |>
-  filter(comparable) |>
-  mutate(bloc = if_else(util, "Util_", "Factuel / Modèle")) |>
-  group_by(bloc) |>
-  summarise(n             = n(),
-            part_haute    = mean(confiance == "haute"),
-            exactitude    = mean(accord),
-            surconfiance  = part_haute - exactitude,
+97,6 % des cellules Util_ comparables sont en confiance haute et aucune en
+confiance basse : les 10 cellules basses appartiennent toutes à des documents
+écartés du codage humain. Le contraste apparent entre 86,6 % et 25,0 % d'accord
+repose sur 4 cellules et ne permet aucune inférence. La surconfiance, écart
+entre part de confiance haute et exactitude observée, atteint 37 points sur le
+bloc à vocabulaire ouvert contre 12 sur le bloc Util_ : le pipeline est d'autant
+plus confiant qu'il se trompe. **La confiance déclarée ne permet donc pas de
+trier les cellules à l'intérieur des documents exploitables.**
+
+```{r confiance-document}
+statut_doc <- compare |>
+  group_by(article) |>
+  summarise(vides      = sum(is.na(humain)),
+            vides_util = sum(is.na(humain) & util),
             .groups = "drop") |>
-  kable(digits = 3, caption = "Surconfiance déclarée par bloc")
-```
+  mutate(exclu = vides == 12 | vides_util == 8)
 
-La confiance déclarée ne discrimine pas : 97,6 % des cellules Util_
-comparables sont en confiance haute et aucune en confiance basse. Le contraste
-apparent entre 86,6 % et 25,0 % d'accord repose sur 4 cellules et ne permet
-aucune inférence. Un seuil placé sur cette variable orienterait 2 % des
-cellules vers une vérification manuelle tout en laissant 13,4 % d'erreurs dans
-la masse acceptée.
-
-La surconfiance est unidirectionnelle et plus marquée là où l'exactitude est
-la plus faible : 37 points d'écart sur le bloc à vocabulaire ouvert contre 12
-sur le bloc Util_. Le pipeline est donc d'autant plus confiant qu'il se trompe,
-ce qui exclut son usage comme critère de tri.
-
-# 6. Conclusion : fiabilité du pipeline
-
-La question n'admet pas de réponse unique, les deux blocs de champs ne se
-comportant pas de la même manière. Cette section quantifie trois éléments
-nécessaires à la conclusion : le biais net de prévalence induit par le
-sur-codage, l'accord champ par champ dans le bloc à vocabulaire ouvert (le
-taux agrégé de 59,6 % mélangeant des champs à vocabulaire fermé et des champs
-en texte libre), et la projection des désaccords attendus sur les articles
-non validés.
-
-```{r conclusion}
-# 1. Biais net de prévalence : (sur-codage - sous-codage) / n, en points
-biais |>
-  transmute(champ, n,
-            desaccords,
-            biais_net_pp = 100 * (ia_sur_code - ia_sous_code) / n) |>
-  arrange(desc(biais_net_pp)) |>
-  kable(digits = 1,
-        caption = "Biais net de prévalence induit par l'IA, en points de pourcentage")
-
-# 2. Bloc à vocabulaire ouvert, détail par champ
 compare |>
-  filter(!util, comparable) |>
-  group_by(champ) |>
-  summarise(n = n(), n_accord = sum(accord), .groups = "drop") |>
-  mutate(taux_accord = n_accord / n) |>
-  arrange(taux_accord) |>
-  kable(digits = 3, caption = "Accord par champ, bloc Factuel / Modèle")
-
-# 3. Projection sur les 177 articles non validés, aux taux observés
-tibble(
-  articles_restants   = 207 - 30,
-  part_exploitables   = 21 / 30,
-  cellules_util       = round((207 - 30) * (21 / 30) * 8),
-  desaccords_attendus = round(cellules_util * (1 - 0.851)),
-  dont_sur_codage     = round(desaccords_attendus * 19 / 25),
-  non_articles_attendus = round((207 - 30) * 5 / 30)
-) |>
-  kable(caption = "Projection des erreurs sur la partie non validée du corpus")
+  group_by(article) |>
+  summarise(a_basse   = any(confiance == "basse"),
+            a_moyenne = any(confiance == "moyenne"),
+            .groups = "drop") |>
+  left_join(statut_doc, by = "article") |>
+  count(exclu, a_basse, a_moyenne) |>
+  kable(caption = "Documents exclus vs. présence de cellules à confiance non haute")
 ```
+
+Au niveau document, en revanche, le drapeau "basse" est parfaitement spécifique
+sur cet échantillon : les 4 documents concernés font tous partie des 9 exclus
+(p = 0,005 sous l'hypothèse d'indépendance), mais il n'en identifie que 4 sur 9.
+Le niveau "moyenne" n'apporte rien, 5 des 10 documents concernés étant
+exploitables. Un document exclu ne portait par ailleurs aucun signal, ayant été
+extrait intégralement en confiance haute. **Le drapeau "basse" peut donc servir
+à prioriser le screening full-text de la section 2, sans que son absence vaille
+validation : le screening doit couvrir l'ensemble du corpus.**
+
+# 6. Accord sur les champs Factuel / Modèle
+
+Ces quatre champs relèvent d'un régime de mesure différent des champs Util_ :
+vocabulaire fermé pour Type_article et Milieu, texte libre pour
+Modele_utilise et Bassin_oceanique, avec des valeurs multiples possibles.
+L'égalité stricte de chaînes, appropriée à un binaire Oui/Non, y est
+inadaptée : une abréviation, une énumération dans un ordre différent ou un
+niveau de détail supérieur y comptent comme des désaccords.
+
+L'accord brut est donc reporté comme borne inférieure, puis complété par des
+règles de comparaison. Ces règles ont été définies après examen des 38
+désaccords et sont énoncées explicitement : elles ne modifient aucun codage,
+elles précisent ce qui compte comme équivalent. Pour Modele_utilise, aucune
+règle automatique n'est proposée, une correspondance par inclusion de chaînes
+construite après coup gonflerait mécaniquement le résultat ; les 23 paires
+sont codées manuellement en trois niveaux.
+
+```{r factuel-synthese}
+fm <- filter(compare, !util, comparable)
+
+# Codage manuel des 23 désaccords de Modele_utilise.
+# concordant : même modèle, granularité différente
+# partiel    : l'IA cite des modèles supplémentaires
+# discordant : contradiction de fond
+codage_modeles <- tribble(
+  ~article,                 ~niveau,
+  "2010_eddytd_478",        "concordant",
+  "2010_harwellma_787",     "partiel",
+  "2010_pintassilgop_689",  "partiel",
+  "2011_sanchiricojn_800",  "concordant",
+  "2015_ainsworthch_563",   "concordant",
+  "2016_grüssa_217",        "partiel",
+  "2016_weijermanm_181",    "concordant",
+  "2018_weijermanm_211",    "concordant",
+  "2018_wildermuthrp_706",  "concordant",
+  "2019_bauerb_284",        "concordant",
+  "2019_carrellae_314",     "partiel",
+  "2019_carvalhopg_476",    "concordant",
+  "2019_fayg_274",          "concordant",
+  "2019_russot_210",        "partiel",
+  "2020_aceves-buenoe_782", "concordant",
+  "2020_nilseni_209",       "concordant",
+  "2021_hazenel_009",       "concordant",
+  "2021_horns_131",         "partiel",
+  "2021_koulv_487",         "concordant",
+  "2021_whitehousega_049",  "partiel",
+  "2021_xingl_039",         "concordant",
+  "2023_keramidasi_133",    "partiel",
+  "2024_anicj_007",         "partiel"
+)
+
+stopifnot(nrow(codage_modeles) == sum(fm$champ == "Modele_utilise" & !fm$accord))
+
+# Règles de comparaison, appliquées symétriquement aux deux codeurs :
+# langue unique, comparaison d'ensembles, "multiple" équivalent à toute
+# énumération d'au moins deux éléments.
+lexique <- c("méditerranée" = "mediterranean", "meditérranée" = "mediterranean",
+             "artic" = "arctic", "atlantique" = "atlantic",
+             "pacifique" = "pacific", "indien" = "indian", "global" = "multiple")
+
+en_ensemble <- function(x) {
+  x |>
+    str_replace_all(lexique) |>
+    str_split("\\s*[;/]\\s*") |>
+    map(~ sort(unique(str_squish(.x))))
+}
+
+recon <- fm |>
+  filter(champ %in% c("Milieu", "Bassin_oceanique")) |>
+  mutate(
+    ens_h    = en_ensemble(humain),
+    ens_ia   = en_ensemble(ia),
+    multi_h  = map_lgl(ens_h,  ~ length(.x) > 1 | "multiple" %in% .x),
+    multi_ia = map_lgl(ens_ia, ~ length(.x) > 1 | "multiple" %in% .x),
+    statut = case_when(
+      map2_lgl(ens_h, ens_ia, setequal)          ~ "Identique",
+      multi_h & multi_ia                         ~ "Équivalent (multiple)",
+      map2_lgl(ens_ia, ens_h, ~ all(.x %in% .y)) ~ "Partiel (IA incomplète)",
+      TRUE                                       ~ "Discordant"))
+
+# Équivalences reconnues : par règle pour les champs géographiques,
+# par codage manuel pour Modele_utilise, aucune pour Type_article.
+equivalences <- bind_rows(
+  recon |>
+    mutate(cat = case_when(
+      statut %in% c("Identique", "Équivalent (multiple)") ~ "equivalents",
+      statut == "Partiel (IA incomplète)"                 ~ "partiels",
+      TRUE                                                ~ "discordants")) |>
+    count(champ, cat),
+  codage_modeles |>
+    mutate(champ = "Modele_utilise",
+           cat = recode(niveau, concordant = "equivalents",
+                        partiel = "partiels", discordant = "discordants")) |>
+    count(champ, cat)
+) |>
+  pivot_wider(names_from = cat, values_from = n, values_fill = 0)
+
+synthese_fm <- fm |>
+  group_by(champ) |>
+  summarise(n = n(), accord_strict = sum(accord), .groups = "drop") |>
+  left_join(equivalences, by = "champ") |>
+  mutate(across(any_of(c("equivalents", "partiels", "discordants")),
+                ~ replace_na(.x, 0)),
+         # Type_article : pas de règle de comparaison, brut = réconcilié
+         equivalents = if_else(champ == "Type_article", accord_strict, equivalents),
+         discordants = if_else(champ == "Type_article", n - accord_strict, discordants)) |>
+  arrange(accord_strict / n)
+
+synthese_fm |>
+  bind_rows(summarise(synthese_fm, champ = "Ensemble du bloc",
+                      across(where(is.numeric), sum))) |>
+  mutate(taux_brut       = accord_strict / n,
+         taux_reconcilie = equivalents / n) |>
+  select(champ, n, accord_strict, taux_brut,
+         equivalents, partiels, discordants, taux_reconcilie) |>
+  kable(digits = 3,
+        caption = "Accord brut et accord après règles de comparaison, par champ")
+
+# AC1 de Type_article : seul champ du bloc à vocabulaire fermé déclaré.
+# K provient de la colonne "Vocabulaire attendu", jamais des données observées.
+cats_type <- lire(chemin_codage, "Codage") |>
+  filter(Champ == "Type_article") |>
+  pull(`Vocabulaire attendu`) |>
+  first() |>
+  norm_txt() |>
+  str_split("\\s*/\\s*") |>
+  unlist()
+
+ac1_type <- ac1(fm$humain[fm$champ == "Type_article"],
+                fm$ia[fm$champ == "Type_article"],
+                cat = cats_type)
+```
+
+Après application des règles de comparaison, l'accord du bloc passe de 59,6 %
+à 78,7 % (74 cellules sur 94). Trois champs atteignent un niveau élevé :
+Type_article 92,0 % (AC1 = 0,910 pour K = 5 catégories déclarées, non
+comparable à celui de la section 3 puisque Pe n'y vaut que 0,11),
+Bassin_oceanique 86,4 % et Milieu 75,0 %. Les discordances résiduelles de
+Milieu opposent pour l'essentiel la catégorie collective "multiple" à une
+valeur unique, dans les deux sens : elles ne sont pas réconciliables par
+règle, "multiple" n'explicitant pas les milieux qu'elle recouvre.
+
+Modele_utilise fait exception avec un accord strict nul, résultat entièrement
+imputable à la méthode de comparaison et non au pipeline. L'IA développe
+systématiquement ce que le codage humain abrège : "atlantis" devient "atlantis
+(guam atlantis coral reef ecosystem model)", "ecopath with ecosim" devient
+"ecopath with ecosim (ewe)". Le codage manuel des 23 paires ne relève aucune
+discordance de fond : dans 14 cas les deux codages désignent le même modèle à
+un niveau de détail près, dans 9 cas l'IA identifie des modèles
+complémentaires. La concordance ne vaut toutefois pas exactitude : la présence
+effective de ces modèles supplémentaires n'a pas été vérifiée, et
+l'exhaustivité apparente du pipeline ne peut être distinguée d'une
+sur-génération sans retour au texte source.
+
+Les discordances résiduelles de Milieu relèvent de la même nature. Trois
+opposent la catégorie collective "multiple" à une énumération, dans les deux
+sens : le codage humain a employé "multiple" dans deux cas, l'IA dans un.
+Aucune règle ne spécifiait laquelle des deux formes retenir. Or les deux ne
+sont pas équivalentes analytiquement : une énumération peut être agrégée a
+posteriori, alors que "multiple" ne peut pas être décomposé, ce qui interdit
+tout traitement par bassin ou par milieu en aval. La convention retenue est
+donc l'énumération exhaustive, et les catégories collectives sont retirées du
+vocabulaire attendu. Les deux discordances restantes portent sur un choix de
+catégorie (marine contre coastal) et relèvent d'une définition à préciser.
+
+**Ces écarts ne constituent pas des défaillances du pipeline mais des lacunes
+du protocole d'extraction, qui doit être complété par des règles de
+comparaison et de saisie plutôt que par un vocabulaire supplémentaire :
+granularité attendue pour les noms de modèles, énumération obligatoire pour
+les champs multivalués, langue unique de saisie.**
+
+Les corrections de protocole identifiées ici portent sur les instructions
+d'extraction et non sur le pipeline lui-même. Toute ré-extraction consécutive
+produirait des sorties non couvertes par la présente validation : une
+ré-extraction ciblée sur les seuls champs concernés est préférable à une
+relance complète.
+
+# 7. Conclusion : le pipeline est-il fiable ?
+
+La réponse diffère selon le bloc de champs et selon le niveau considéré,
+cellule ou document. Cette section rassemble les chiffres des sections 3 à 6 et
+en tire les conditions d'exploitation du corpus.
+
+```{r synthese}
+ac1_util <- ac1(u$humain, u$ia)
+
+synthese_blocs <- tibble(
+  bloc          = c("Util_ (binaire Oui/Non)",
+                    "Factuel / Modèle (vocabulaire ouvert)"),
+  n_champs      = c(n_distinct(u$champ), n_distinct(fm$champ)),
+  n_cellules    = c(nrow(u), nrow(fm)),
+  accord_strict = c(sum(u$accord), sum(fm$accord)),
+  # Bloc Util_ : vocabulaire binaire, aucune règle de comparaison applicable
+  accord_retenu = c(sum(u$accord), sum(synthese_fm$equivalents)),
+  ac1           = c(ac1_util$ac1, NA_real_),
+  ic_bas        = c(unname(quantile(boot, 0.025, na.rm = TRUE)), NA_real_),
+  ic_haut       = c(unname(quantile(boot, 0.975, na.rm = TRUE)), NA_real_)
+)
+
+synthese_blocs |>
+  bind_rows(summarise(synthese_blocs,
+                      bloc = "Ensemble des 12 champs",
+                      across(c(n_champs, n_cellules, accord_strict, accord_retenu), sum),
+                      across(c(ac1, ic_bas, ic_haut), ~ NA_real_))) |>
+  mutate(taux_strict = accord_strict / n_cellules,
+         taux_retenu = accord_retenu / n_cellules) |>
+  select(bloc, n_champs, n_cellules, accord_strict, taux_strict,
+         accord_retenu, taux_retenu, ac1, ic_bas, ic_haut) |>
+  kable(digits = 3,
+        caption = "Synthèse de l'accord par bloc et sur l'ensemble des champs")
+
+# Champs à écart directionnel : différence nette entre les deux sens de
+# désaccord, rapportée au nombre de cellules comparables. L'analyse ne
+# détermine pas lequel des deux codages est le plus proche du texte.
+biais |>
+  filter(ia_oui_humain_non > ia_non_humain_oui) |>
+  transmute(champ, n, desaccords,
+            ia_oui_humain_non,
+            ecart_net_pp = 100 * (ia_oui_humain_non - ia_non_humain_oui) / n) |>
+  arrange(desc(ecart_net_pp)) |>
+  kable(digits = 1,
+        caption = "Champs Util_ à recoder (écart net de prévalence, points de pourcentage)")
+```
+
+**Le pipeline atteint une concordance globale de 82,8 % avec le codage de
+référence (217 cellules sur 262, 12 champs, 30 articles). Il est jugé fiable
+pour l'extraction, sous deux conditions : définir opérationnellement trois
+champs Util_ insuffisamment spécifiés, et compléter le protocole par des
+règles de saisie. Il ne l'est pas pour le filtrage des documents non
+éligibles, qui relève d'une étape distincte.**
+
+Ce taux global agrège des régimes de mesure différents et n'est pas corrigé du
+hasard : il se lit comme une concordance descriptive, non comme un coefficient
+d'accord. Les valeurs corrigées sont reportées par bloc.
+
+*Champs Util_.* 85,1 % d'accord (143 cellules sur 168), AC1 = 0,750, borne
+inférieure de l'IC à 0,629 : la qualification substantielle tient à 95 %. Cinq
+champs sur huit sont directement exploitables, avec un accord de 0,86 à 1,00.
+
+Trois font exception, non par un accord plus faible (0,71 à 0,86) mais par la
+nature de leurs désaccords : sur Util_social, Util_economique et
+Util_scenarios, les 14 écarts observés vont tous dans le même sens, le pipeline
+codant "Oui" là où le codage humain code "Non". Une divergence symétrique se
+compenserait à l'agrégation ; un écart unidirectionnel déplace la prévalence
+elle-même, de 14 à 29 points de pourcentage selon le champ (Util_scenarios
+14,3, Util_economique 23,8, Util_social 28,6).
+
+La présente analyse ne détermine pas lequel des deux codages est le plus proche
+du contenu des articles : elle mesure un écart, non une exactitude.
+L'explication la plus vraisemblable est que le critère d'attribution n'a jamais
+été spécifié. Ces trois champs sont les plus interprétatifs des huit, et rien
+ne définit le seuil à partir duquel une dimension sociale, économique ou
+scénaristique est considérée comme intégrée au cadre plutôt que simplement
+mentionnée. Les deux codeurs ont donc appliqué des seuils implicites
+différents, ce que ne connaissent pas Util_biologique ou Util_peche, dont le
+critère va de soi et où l'accord est parfait.
+
+Ces trois champs doivent en conséquence faire l'objet d'une définition
+opérationnelle explicite, puis d'un recodage sur cette base, avant toute
+exploitation de leurs prévalences.
+
+*Champs Factuel / Modèle.* 78,7 % d'accord après application des règles de
+comparaison (74 cellules sur 94), contre 59,6 % en égalité stricte de chaînes.
+L'écart entre ces deux chiffres ne mesure pas la performance du pipeline mais
+l'absence de règles de saisie au protocole : aucune discordance de fond n'a été
+relevée sur Modele_utilise, et les écarts résiduels de Milieu tiennent à
+l'emploi non spécifié de la catégorie collective "multiple". La correction
+porte donc sur les instructions d'extraction, non sur le pipeline.
+
+*Éligibilité documentaire.* 5 des 30 articles tirés (17 %) ne sont pas
+exploitables et 4 sont des revues, soit 9 documents sur 30 à écarter. Le
+pipeline n'en a signalé que 4, et 82 des 98 cellules correspondantes avaient
+été extraites en confiance haute. Le screening full-text établi en section 2
+reste donc un prérequis, la confiance déclarée ne servant qu'à en prioriser
+l'ordre.
+
+*Portée de la comparaison.* Le codage de référence est celui d'un codeur
+unique, sur 30 articles. Les statistiques mesurent une concordance entre le
+pipeline et ce codeur, non une exactitude absolue : les désaccords observés ne
+sont pas attribuables à l'un ou à l'autre, et une part d'entre eux relève de
+l'erreur de codage humaine que comporterait également une extraction manuelle
+intégrale. La concordance de 82,8 % constitue donc un plancher pour les deux
+codeurs plutôt qu'un taux d'erreur du pipeline. Un second codeur indépendant,
+même sur un sous-échantillon de dix articles, fournirait la référence
+humain-humain permettant de situer cette valeur.
+
+*Limites.* La validation porte sur 30 articles (14,5 % du corpus) et 21 pour le
+bloc Util_, ce qui explique la largeur de l'IC et interdit toute inférence par
+champ. Les règles de comparaison du bloc factuel ont été définies après examen
+des désaccords, et leur effet est reporté séparément de l'accord brut. Enfin,
+les corrections de protocole identifiées portent sur les instructions
+d'extraction et non sur le pipeline lui-même : toute ré-extraction consécutive
+produirait des sorties non couvertes par la présente validation, et une
+ré-extraction ciblée sur les seuls champs concernés est préférable à une
+relance complète.
